@@ -1,5 +1,6 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { getLogs, saveLog, getBodyScans, saveBodyScan, getMachines, addMachine, getSetting, setSetting } from './supabase.js';
 
 const C = {
   bg:"#090910", sur:"#111118", card:"#15151e", bdr:"#1c1c2c",
@@ -380,6 +381,26 @@ export default function App() {
       document.head.appendChild(style);
     }
   }, []);
+
+  // Load data from Supabase on mount
+  useEffect(() => {
+    async function loadData() {
+      setSyncing(true);
+      try {
+        const [dbLogs, dbScans, dbMachines] = await Promise.all([
+          getLogs(), getBodyScans(), getMachines()
+        ]);
+        if (dbLogs.length > 0) setLogs(dbLogs);
+        if (dbScans.length > 0) setBodyLog(dbScans);
+        if (dbMachines.length > 0) setMachines(dbMachines);
+        setDbReady(true);
+      } catch(e) {
+        console.error('Failed to load from Supabase:', e);
+      }
+      setSyncing(false);
+    }
+    loadData();
+  }, []);
   const [logs, setLogs] = useState(LOGS0);
   const [machines, setMachines] = useState(MACHINES);
   const [bodyLog, setBodyLog] = useState(BODY0);
@@ -525,6 +546,7 @@ export default function App() {
     const entry = {id:uid(), date:today(), machine:m, sets:valid.map(s=>({...s,done:true})), superset:isSuper, supersetWith:isSuper?superWith:"", notes:wNotes, isPR};
     if (machine==="__new" && newMach && !machines.includes(newMach)) setMachines(p=>[...p,newMach]);
     setLogs(p=>[entry,...p]);
+    saveLog(entry).catch(e => console.error('Save log error:', e));
     setSets([{id:uid(),reps:"",weight:"",done:false}]);
     setMachine(""); setNewMach(""); setWNotes(""); setIsSuper(false); setSuperWith("");
     showToast(isPR ? "New PR! Great work!" : "Logged: " + m);
@@ -554,6 +576,7 @@ export default function App() {
           subcutaneousFat:parsed.subcutaneousFat||0, smi:parsed.smi||0, whr:parsed.whr||0, notes:""
         };
         setBodyLog(p=>[...p,entry]);
+        saveBodyScan(entry).catch(e => console.error('Save scan error:', e));
         showToast("Starfit report imported!");
         setBodyTab("overview");
       }
@@ -595,7 +618,7 @@ export default function App() {
         <div className="htop">
           <div>
             <div className="logo">GAINLOG</div>
-            <div className="lsub">Hypertrophy + Body Composition</div>
+            <div className="lsub">{syncing ? "⟳ Syncing..." : dbReady ? "☁ Synced" : "Hypertrophy Tracker"}</div>
           </div>
           <div className="hbtns">
             <button className="icb" onClick={()=>{setGlasses(g=>Math.min(g+1,8));showToast("Water logged!");}}>💧</button>
@@ -913,7 +936,7 @@ export default function App() {
                       <div className="row" style={{marginTop:9}}>
                         <button className="btn bacc" style={{flex:1}} onClick={()=>{
                           const e2 = {id:uid(),date:manEntry.date||today(),source:"Manual",score:+manEntry.score||0,weight:+manEntry.weight||0,bodyFat:+manEntry.bodyFat||0,muscle:+manEntry.muscle||0,skeletalMuscle:+manEntry.skeletalMuscle||0,bmi:+manEntry.bmi||0,bmr:+manEntry.bmr||0,bodyAge:+manEntry.bodyAge||0,visceralFat:+manEntry.visceralFat||0,fatFreeMass:+manEntry.fatFreeMass||0,whr:+manEntry.whr||0,protein:0,bodyWater:0,inorganicSalt:0,subcutaneousFat:0,smi:0,notes:""};
-                          setBodyLog(p=>[...p,e2]); setManEntry(null); showToast("Saved!"); setBodyTab("overview");
+                          setBodyLog(p=>[...p,e2]); saveBodyScan(e2).catch(console.error); setManEntry(null); showToast("Saved!"); setBodyTab("overview");
                         }}>Save</button>
                         <button className="btn bgh" style={{flex:1}} onClick={()=>setManEntry(null)}>Cancel</button>
                       </div>
