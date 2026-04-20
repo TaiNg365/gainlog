@@ -769,8 +769,7 @@ export default function App() {
     setCamDetecting(true); setCamResult(null);
     const providerToUse = aiProvider;
     const keyToUse = apiKey;
-    const prompt = "You are a gym equipment expert. Look at this image and identify the gym machine or equipment shown. Respond with ONLY a JSON object like: {"name": "Machine Name", "confidence": "high/medium/low", "description": "brief one-sentence description of what it does", "muscleGroup": "primary muscle group it targets"}. If you cannot identify gym equipment in the image, return {"name": "Unknown Equipment", "confidence": "low", "description": "Could not identify", "muscleGroup": ""}. Return ONLY the JSON, nothing else.";
-
+    const prompt = `You are a gym equipment expert. Look at this image and identify the gym machine or equipment shown. Respond with ONLY a JSON object like this: {name, confidence, description, muscleGroup}. Confidence is high, medium, or low. Return ONLY valid JSON, nothing else.`;
     try {
       let responseText = "";
 
