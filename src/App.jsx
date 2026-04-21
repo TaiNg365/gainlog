@@ -1991,6 +1991,7 @@ export default function App() {
               {[
                 ["workout","🏋️","Log Workout","Track sets, reps & weight"],
                 ["cardio","🏃","Cardio","Log cardio + calorie burn"],
+                ["daily","📅","Daily Log","Activities grouped by day"],
                 ["ai","🤖","AI Coach","Smart suggestions & plans"],
                 ["plan","📋","My Plans","Weekly programmes"],
                 ["records","🏆","Personal Records","Your best lifts"],
