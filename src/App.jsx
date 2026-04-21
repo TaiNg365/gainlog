@@ -558,6 +558,7 @@ export default function App() {
   const [dailyTab, setDailyTab] = useState("today");
   const [savingPlan, setSavingPlan] = useState(null);
   const [planNameInput, setPlanNameInput] = useState("");
+  const [dailyCalEst, setDailyCalEst] = useState({});
 
   // ── ALL REFS ───────────────────────────────────────────────────────────────
   const timerRef = useRef(null);
@@ -629,6 +630,8 @@ export default function App() {
     if (timerOn) {
       timerStartRef.current = Date.now();
       timerSecAtStartRef.current = timerSec;
+      // Request notification permission for background timer alert
+      if (Notification?.permission === "default") Notification?.requestPermission?.();
       timerRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - timerStartRef.current) / 1000);
         const remaining = timerSecAtStartRef.current - elapsed;
@@ -636,16 +639,32 @@ export default function App() {
           clearInterval(timerRef.current);
           setTimerOn(false);
           setTimerSec(timerMax);
+          document.title = "GAINLOG";
           showToast("✅ Rest done — next set!");
-          if (navigator.vibrate) navigator.vibrate([200,100,200]);
+          // Vibrate
+          if (navigator.vibrate) navigator.vibrate([300,100,300,100,300]);
+          // Show notification if app is in background
+          if (document.hidden && Notification?.permission === "granted") {
+            new Notification("GAINLOG — Rest Complete! 💪", {
+              body: "Time to do your next set!",
+              icon: "/icons/icon-192.png",
+              tag: "rest-timer",
+              requireInteraction: false
+            });
+          }
         } else {
           setTimerSec(remaining);
+          // Update page title so it shows in background tab
+          const mins = Math.floor(remaining/60).toString().padStart(2,"0");
+          const secs = (remaining%60).toString().padStart(2,"0");
+          document.title = "⏱ "+mins+":"+secs+" — GAINLOG";
         }
       }, 500);
     } else {
       clearInterval(timerRef.current);
+      document.title = "GAINLOG";
     }
-    return () => clearInterval(timerRef.current);
+    return () => { clearInterval(timerRef.current); document.title = "GAINLOG"; };
   }, [timerOn]);
 
   // Visibility change - sync timer when coming back from background
@@ -673,7 +692,6 @@ export default function App() {
       .sort((a,b) => (a.time||"00:00").localeCompare(b.time||"00:00"));
     const c = cardioLogs.filter(l => l.date === dateStr)
       .sort((a,b) => (a.time||"00:00").localeCompare(b.time||"00:00"));
-    // Merge and sort by time
     const all = [
       ...w.map(x=>({...x,type:"workout"})),
       ...c.map(x=>({...x,type:"cardio"}))
@@ -681,7 +699,18 @@ export default function App() {
     const totalVol = w.reduce((s,l)=>s+l.sets.reduce((ss,set)=>ss+(Number(set.weight)*Number(set.reps)),0),0);
     const cardioMin = c.reduce((s,l)=>s+(Number(l.duration)||0),0);
     const calDisplay = c.reduce((s,l)=>s+(Number(l.calDisplay)||0),0);
-    return {date:dateStr, workouts:w, cardio:c, all, total:w.length+c.length, totalVol, cardioMin, calDisplay};
+    // Gym time = from first to last logged entry
+    const times = all.filter(x=>x.time).map(x=>x.time);
+    let gymTime = null;
+    if (times.length >= 2) {
+      const first = times[0], last = times[times.length-1];
+      const [fh,fm] = first.split(":").map(Number);
+      const [lh,lm] = last.split(":").map(Number);
+      const diffMin = (lh*60+lm) - (fh*60+fm);
+      if (diffMin > 0) gymTime = diffMin >= 60 ? Math.floor(diffMin/60)+"h "+(diffMin%60)+"m" : diffMin+"m";
+    }
+    const calEst = dailyCalEst[dateStr] || null;
+    return {date:dateStr, workouts:w, cardio:c, all, total:w.length+c.length, totalVol, cardioMin, calDisplay, gymTime, calEst};
   };
 
   const getAllDates = () => {
@@ -754,6 +783,8 @@ export default function App() {
     setLogs(newLogs);
     saveLog(entry).catch(()=>{});
     updateLiveCalEst(newLogs, cardioLogs);
+    // Update daily calorie estimate
+    updateDailyCalEst(today(), newLogs, cardioLogs);
     setSets([{id:uid(),reps:"",weight:"",done:false}]);
     setSuperSets([{id:uid(),reps:"",weight:"",done:false}]);
     setMachine(""); setMachSearch(""); setNewMach(""); setWNotes(""); setIsSuper(false); setSuperWith(""); setSuperSearch(""); setSuperOpen(false);
@@ -819,6 +850,22 @@ export default function App() {
     const p = "Longevity and fitness expert. Chronological age: 51, Male. Scans: "+scans+". Latest: "+body+". PRs: "+prStr+". Give: 1) Body age trend 2) What drives the score 3) Specific changes to reduce body age 4) Strength vs expected for age 5) Realistic 6-month target. Use **bold** for numbers. 200 words max.";
     try { setAiAge(await ai(p, 500)); } catch(e) { setAiAge("Error."); }
     setAiAgeL(false);
+  };
+
+  const updateDailyCalEst = async (dateStr, allLogs, allCardio) => {
+    if (!apiKey || !dateStr) return;
+    const tw = allLogs.filter(l=>l.date===dateStr);
+    const tc = allCardio.filter(l=>l.date===dateStr);
+    if (tw.length===0 && tc.length===0) return;
+    const bData = latest ? "Weight:"+latest.weight+"lb BMR:"+latest.bmr+"kcal" : "No scan";
+    const wSum = tw.map(l=>l.machine+" "+l.sets.length+"sets").join(", ")||"None";
+    const cSum = tc.map(c=>c.machine+" "+c.duration+"min"+(c.calDisplay?" "+c.calDisplay+"cal display":"")).join(", ")||"None";
+    const p = "Estimate calories burned. 51yr male athlete. "+bData+". Strength: "+wSum+". Cardio: "+cSum+". Reply ONLY: ~NNN kcal";
+    try {
+      const r = await ai(p, 40);
+      const match = r.match(/~?(\d+)/);
+      if (match) setDailyCalEst(prev=>({...prev, [dateStr]: parseInt(match[1])}));
+    } catch(e) {}
   };
 
   const callCalorieEstimate = async () => {
@@ -1375,6 +1422,7 @@ export default function App() {
                   setCardioLogs(newCardio);
                   saveCardioLog(entry).catch(()=>{});
                   updateLiveCalEst(logs, newCardio);
+                  updateDailyCalEst(today(), logs, newCardio);
                   setCardioMachine(""); setCardioDuration(""); setCardioCalDisplay(""); setCardioNotes("");
                   showToast("✅ Cardio logged!");
                   setCardioTab("history");
@@ -1429,19 +1477,29 @@ export default function App() {
                       <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:1.5,color:isToday2?"#c8f135":"#e8e8f0"}}>
                         {isToday2 ? "Today" : dateStr}
                       </div>
-                      <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                      <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
                         {day.workouts.length > 0 && (
                           <span className="chip b" style={{fontSize:11}}>🏋️ {day.workouts.length} exercises</span>
                         )}
                         {day.cardioMin > 0 && (
                           <span className="chip r" style={{fontSize:11}}>🏃 {day.cardioMin} min</span>
                         )}
-                        {day.calDisplay > 0 && (
-                          <span className="chip g" style={{fontSize:11}}>🔥 {day.calDisplay} cal</span>
+                        {day.gymTime && (
+                          <span className="chip" style={{fontSize:11,background:"#9b5de520",color:"#9b5de5"}}>⏱ {day.gymTime} in gym</span>
                         )}
                         {day.totalVol > 0 && (
-                          <span className="chip" style={{fontSize:11}}>⚡ {day.totalVol.toLocaleString()} lb vol</span>
+                          <span className="chip" style={{fontSize:11}}>⚡ {day.totalVol.toLocaleString()} lb</span>
                         )}
+                        {day.calEst ? (
+                          <span className="chip g" style={{fontSize:11}}>🔥 ~{day.calEst} kcal</span>
+                        ) : day.calDisplay > 0 ? (
+                          <span className="chip g" style={{fontSize:11}}>🔥 {day.calDisplay} cal</span>
+                        ) : apiKey && (day.workouts.length>0||day.cardioMin>0) ? (
+                          <span className="chip" style={{fontSize:11,cursor:"pointer",background:"#c8f13510",color:"#c8f135"}}
+                            onClick={()=>updateDailyCalEst(dateStr, logs, cardioLogs)}>
+                            🔥 Estimate cal
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <button
@@ -2026,7 +2084,7 @@ export default function App() {
               <div className="cam-title">📷 Scan Machine</div>
               <button className="cam-close" onClick={()=>setCamOpen(false)}>×</button>
             </div>
-            <div className="cam-body">
+            <div className="cam-body" style={{maxHeight:"70vh",overflowY:"auto"}}>
               {camPhoto ? (
                 <div style={{width:"100%",borderRadius:12,overflow:"hidden",marginBottom:14}}>
                   <img src={camPhoto} alt="captured" style={{width:"100%",display:"block",borderRadius:12}}/>
