@@ -535,9 +535,9 @@ export default function App() {
 
   // AI Setup
   const [aiProvider, setAiProvider] = useState("gemini");
-  const [aiModel, setAiModel] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [apiInput, setApiInput] = useState("");
+  const [aiModel, setAiModel] = useState("gemini-2.5-flash");
+  const [apiKey, setApiKey] = useState("AIzaSyC6y_m0elIpzLgaOqIZeDzNiTYm7szs-io");
+  const [apiInput, setApiInput] = useState("AIzaSyC6y_m0elIpzLgaOqIZeDzNiTYm7szs-io");
 
   // Body
   const [bodyTab, setBodyTab] = useState("overview");
@@ -605,6 +605,7 @@ export default function App() {
         if (dbMachines.length > 0) setMachines(dbMachines);
         if (dbCardio.length > 0) { setCardioLogs(dbCardio); localStorage.setItem("gl_cardio", JSON.stringify(dbCardio)); }
         if (savedKey) { setApiKey(savedKey); setApiInput(savedKey); }
+        else { setApiKey("AIzaSyC6y_m0elIpzLgaOqIZeDzNiTYm7szs-io"); setApiInput("AIzaSyC6y_m0elIpzLgaOqIZeDzNiTYm7szs-io"); }
         if (savedProv) setAiProvider(savedProv);
         if (savedMdl) setAiModel(savedMdl);
         setDbReady(true);
@@ -777,20 +778,29 @@ export default function App() {
   const callSug = async () => {
     setAiSugL(true); setAiSug(null);
     const {hist, prStr, body, mach} = ctx();
-    const todayLogs = logs.filter(l=>l.date===today());
-    const todaySummary = todayLogs.length>0 ? todayLogs.map(l=>l.machine+": "+l.sets.map(s=>s.reps+"x"+s.weight+"lb").join(", ")).join(" | ") : "Nothing logged today yet";
-    const p = [
-      "You are an expert hypertrophy coach for a 51yr old male training 7 days/week twice daily.",
-      "Body: "+body+". Today so far: "+todaySummary+". PRs: "+prStr+".",
-      "History: "+hist+". Equipment: "+mach+". Hydration: "+waterMl+"ml/"+waterGoal+"ml.",
-      "Give SPECIFIC advice with exact numbers:",
-      "1. Progressive overload: which machine, current→target weight and why",
-      "2. Superset combo: Machine A + Machine B, exact sets/reps",
-      "3. Body composition insight based on fat% and muscle mass",
-      "4. Today's priority session based on what's been logged",
-      "Use **bold** for key numbers. 150 words max."
-    ].join(" ");
-    try { setAiSug(await ai(p, 400)); } catch(e) { setAiSug("Error. Check API key in Setup."); }
+    const todayDate = today();
+    const todayLogs = logs.filter(l=>l.date===todayDate);
+    const todaySummary = todayLogs.length>0
+      ? todayLogs.map(l=>l.machine+": "+l.sets.map(s=>s.reps+"x"+s.weight+"lb").join(", ")).join(" | ")
+      : "Nothing logged today yet";
+    const p = `You are an elite hypertrophy coach. Give SHORT, PUNCHY, ACTIONABLE advice. NO preamble. Just 4 numbered points.
+
+Athlete: 51yr male, trains 7 days/week twice daily.
+Body: ${body}
+Today logged: ${todaySummary}
+Recent PRs: ${prStr}
+Last 10 sessions: ${hist}
+Available machines: ${mach}
+Water: ${waterMl}ml of ${waterGoal}ml goal
+
+Reply with EXACTLY this format (no intro, no "here's your feedback"):
+**1. Next set target:** [specific machine] → [current weight]lb → try [target weight]lb today because [1 reason]
+**2. Best superset now:** [Machine A] + [Machine B] → [sets]x[reps] each, [rest time]s rest
+**3. Body insight:** [1 specific observation about their 19.5% fat / 145lb muscle with action]
+**4. Session focus:** [what to prioritise next based on what's already done today]
+
+Keep each point to 1-2 lines max. Use specific numbers from their data.`;
+    try { setAiSug(await ai(p, 500)); } catch(e) { setAiSug("Error: " + e.message); }
     setAiSugL(false);
   };
 
@@ -1037,7 +1047,6 @@ export default function App() {
                   <button className="btn bgh bfull" style={{marginTop:10,fontSize:13}} onClick={()=>setAiSug(null)}>Clear</button>
                 </div>
               )}
-}
             </div>
 
             {/* Today's Plan selector */}
