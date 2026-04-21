@@ -515,8 +515,7 @@ export default function App() {
   const [cardioDuration, setCardioDuration] = useState("");
   const [cardioCalDisplay, setCardioCalDisplay] = useState("");
   const [cardioNotes, setCardioNotes] = useState("");
-  const [aiCalEst, setAiCalEst] = useState(null);
-  const [aiCalLoading, setAiCalLoading] = useState(false);
+
 
   // AI
   const [aiSug, setAiSug] = useState(null);
@@ -532,7 +531,7 @@ export default function App() {
   const [aiAge, setAiAge] = useState(null);
   const [aiAgeL, setAiAgeL] = useState(false);
   const [openFeat, setOpenFeat] = useState("");
-  const [liveCalEst, setLiveCalEst] = useState(null);
+
 
   // AI Setup
   const [aiProvider, setAiProvider] = useState("gemini");
@@ -558,7 +557,7 @@ export default function App() {
   const [dailyTab, setDailyTab] = useState("today");
   const [savingPlan, setSavingPlan] = useState(null);
   const [planNameInput, setPlanNameInput] = useState("");
-  const [dailyCalEst, setDailyCalEst] = useState({});
+
 
   // ── ALL REFS ───────────────────────────────────────────────────────────────
   const timerRef = useRef(null);
@@ -591,6 +590,7 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("gl_water", JSON.stringify({waterMl,waterGoal})); } catch(e) {} }, [waterMl, waterGoal]);
   useEffect(() => { try { localStorage.setItem("gl_plans", JSON.stringify(savedPlans)); } catch(e) {} }, [savedPlans]);
 
+
   // Load from Supabase
   useEffect(() => {
     async function load() {
@@ -608,6 +608,7 @@ export default function App() {
         if (savedProv) setAiProvider(savedProv);
         if (savedMdl) setAiModel(savedMdl);
         setDbReady(true);
+
       } catch(e) { console.error("Supabase sync failed:", e); setDbReady(true); }
       setSyncing(false);
     }
@@ -630,8 +631,8 @@ export default function App() {
     if (timerOn) {
       timerStartRef.current = Date.now();
       timerSecAtStartRef.current = timerSec;
-      // Request notification permission for background timer alert
-      if (Notification?.permission === "default") Notification?.requestPermission?.();
+      // Note: iOS Safari doesn't support web notifications
+      // Timer updates browser tab title so countdown shows when switching tabs
       timerRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - timerStartRef.current) / 1000);
         const remaining = timerSecAtStartRef.current - elapsed;
@@ -643,15 +644,9 @@ export default function App() {
           showToast("✅ Rest done — next set!");
           // Vibrate
           if (navigator.vibrate) navigator.vibrate([300,100,300,100,300]);
-          // Show notification if app is in background
-          if (document.hidden && Notification?.permission === "granted") {
-            new Notification("GAINLOG — Rest Complete! 💪", {
-              body: "Time to do your next set!",
-              icon: "/icons/icon-192.png",
-              tag: "rest-timer",
-              requireInteraction: false
-            });
-          }
+          // iOS Safari blocks web notifications - vibration is the only reliable method
+          // Strong triple vibrate pattern so it's felt through pocket
+          if (navigator.vibrate) navigator.vibrate([400,150,400,150,400]);
         } else {
           setTimerSec(remaining);
           // Update page title so it shows in background tab
@@ -709,8 +704,7 @@ export default function App() {
       const diffMin = (lh*60+lm) - (fh*60+fm);
       if (diffMin > 0) gymTime = diffMin >= 60 ? Math.floor(diffMin/60)+"h "+(diffMin%60)+"m" : diffMin+"m";
     }
-    const calEst = dailyCalEst[dateStr] || null;
-    return {date:dateStr, workouts:w, cardio:c, all, total:w.length+c.length, totalVol, cardioMin, calDisplay, gymTime, calEst};
+    return {date:dateStr, workouts:w, cardio:c, all, total:w.length+c.length, totalVol, cardioMin, calDisplay, gymTime};
   };
 
   const getAllDates = () => {
@@ -755,18 +749,7 @@ export default function App() {
 
   const savePlansToStorage = (plans) => { setSavedPlans(plans); };
 
-  const updateLiveCalEst = async (newLogs, newCardio) => {
-    if (!apiKey) return;
-    const todayDate = today();
-    const tw = newLogs.filter(l=>l.date===todayDate);
-    const tc = newCardio.filter(l=>l.date===todayDate);
-    if (tw.length===0 && tc.length===0) return;
-    const bodyData = latest ? "Weight:"+latest.weight+"lb BMR:"+latest.bmr+"kcal" : "No scan";
-    const wSum = tw.length>0 ? tw.map(l=>l.machine+" "+l.sets.length+"sets").join(", ") : "None";
-    const cSum = tc.length>0 ? tc.map(c=>c.machine+" "+c.duration+"min"+(c.calDisplay?" "+c.calDisplay+"cal":"")).join(", ") : "None";
-    const p = "Quick 1-line calorie burn estimate. 51yr old male athlete. Body: "+bodyData+". Strength: "+wSum+". Cardio: "+cSum+". Reply ONLY with format: Est. burn: ~NNN kcal (NNN strength + NNN cardio)";
-    try { const r = await ai(p, 60); setLiveCalEst(r); } catch(e) {}
-  };
+
 
   // Workout logging
   const logWorkout = () => {
@@ -782,9 +765,8 @@ export default function App() {
     const newLogs = [entry, ...logs];
     setLogs(newLogs);
     saveLog(entry).catch(()=>{});
-    updateLiveCalEst(newLogs, cardioLogs);
-    // Update daily calorie estimate
-    updateDailyCalEst(today(), newLogs, cardioLogs);
+
+
     setSets([{id:uid(),reps:"",weight:"",done:false}]);
     setSuperSets([{id:uid(),reps:"",weight:"",done:false}]);
     setMachine(""); setMachSearch(""); setNewMach(""); setWNotes(""); setIsSuper(false); setSuperWith(""); setSuperSearch(""); setSuperOpen(false);
@@ -852,47 +834,9 @@ export default function App() {
     setAiAgeL(false);
   };
 
-  const updateDailyCalEst = async (dateStr, allLogs, allCardio) => {
-    if (!apiKey || !dateStr) return;
-    const tw = allLogs.filter(l=>l.date===dateStr);
-    const tc = allCardio.filter(l=>l.date===dateStr);
-    if (tw.length===0 && tc.length===0) return;
-    const bData = latest ? "Weight:"+latest.weight+"lb BMR:"+latest.bmr+"kcal" : "No scan";
-    const wSum = tw.map(l=>l.machine+" "+l.sets.length+"sets").join(", ")||"None";
-    const cSum = tc.map(c=>c.machine+" "+c.duration+"min"+(c.calDisplay?" "+c.calDisplay+"cal display":"")).join(", ")||"None";
-    const p = "Estimate calories burned. 51yr male athlete. "+bData+". Strength: "+wSum+". Cardio: "+cSum+". Reply ONLY: ~NNN kcal";
-    try {
-      const r = await ai(p, 40);
-      const match = r.match(/~?(\d+)/);
-      if (match) setDailyCalEst(prev=>({...prev, [dateStr]: parseInt(match[1])}));
-    } catch(e) {}
-  };
 
-  const callCalorieEstimate = async () => {
-    setAiCalLoading(true); setAiCalEst(null);
-    const todayDate = today();
-    const todayW = logs.filter(l=>l.date===todayDate);
-    const todayC = cardioLogs.filter(l=>l.date===todayDate);
-    const bodyData = latest ? "Weight:"+latest.weight+"lb Fat:"+latest.bodyFat+"% BMR:"+latest.bmr+"kcal" : "No scan";
-    const wSum = todayW.length>0 ? todayW.map(l=>l.machine+" "+l.sets.length+"sets x ~"+l.sets[0]?.reps+"reps @"+l.sets[0]?.weight+"lb").join(" | ") : "No strength training today";
-    const cSum = todayC.length>0 ? todayC.map(c=>c.machine+" "+c.duration+"min"+(c.calDisplay?" ("+c.calDisplay+" cal on display)":"")).join(" | ") : "No cardio today";
-    const p = [
-      "Sports science calorie expenditure expert.",
-      "51yr old male, 7x/week training. Body: "+bodyData,
-      "STRENGTH: "+wSum,
-      "CARDIO: "+cSum,
-      "Calculate precisely:",
-      "**Strength burn:** use MET 5-6 for resistance training, estimate session duration from sets",
-      "**Cardio burn:** compare machine display vs actual estimate (machines overestimate 20-30%)",
-      "**Total exercise calories:**",
-      "**Total day calories:** BMR + exercise",
-      "**For hypertrophy:** needs BMR x 1.55 + 300-500 surplus = target",
-      "**Still need to eat:** target minus burned",
-      "Give exact numbers, use **bold** for totals. 200 words max."
-    ].join(" ");
-    try { setAiCalEst(await ai(p, 500)); } catch(e) { setAiCalEst("Error. Check API key."); }
-    setAiCalLoading(false);
-  };
+
+
 
   const saveAIPlanAsCustom = () => {
     if (!aiPlan) return;
@@ -1093,12 +1037,7 @@ export default function App() {
                   <button className="btn bgh bfull" style={{marginTop:10,fontSize:13}} onClick={()=>setAiSug(null)}>Clear</button>
                 </div>
               )}
-              {liveCalEst && (
-                <div style={{marginTop:10,background:"#0d1a0d",borderRadius:9,padding:"9px 12px",display:"flex",alignItems:"center",gap:7}}>
-                  <span>🔥</span>
-                  <span style={{fontSize:13,color:"#00e096"}}>{liveCalEst}</span>
-                </div>
-              )}
+}
             </div>
 
             {/* Today's Plan selector */}
@@ -1373,17 +1312,6 @@ export default function App() {
                       <div style={{fontSize:11,color:"#6a6a8a",marginTop:3}}>Cal display</div>
                     </div>
                   </div>
-                  <button className="btn bacc bfull" style={{marginTop:0}} onClick={callCalorieEstimate} disabled={aiCalLoading}>
-                    {aiCalLoading ? "⟳ Estimating..." : "🤖 AI Estimate Total Burn"}
-                  </button>
-                  {aiCalLoading && <div style={{marginTop:10}}><Ldots/></div>}
-                  {aiCalEst && (
-                    <div className="ai-result" style={{marginTop:12}}>
-                      <div className="ai-result-title">📊 Calorie Breakdown</div>
-                      <div className="ai-result-text">{renderAI(aiCalEst)}</div>
-                      <button className="btn bgh bfull" style={{marginTop:10,fontSize:13}} onClick={()=>setAiCalEst(null)}>Clear</button>
-                    </div>
-                  )}
                 </div>
               );
             })()}
@@ -1421,8 +1349,8 @@ export default function App() {
                   const newCardio = [entry, ...cardioLogs];
                   setCardioLogs(newCardio);
                   saveCardioLog(entry).catch(()=>{});
-                  updateLiveCalEst(logs, newCardio);
-                  updateDailyCalEst(today(), logs, newCardio);
+
+
                   setCardioMachine(""); setCardioDuration(""); setCardioCalDisplay(""); setCardioNotes("");
                   showToast("✅ Cardio logged!");
                   setCardioTab("history");
@@ -1490,16 +1418,7 @@ export default function App() {
                         {day.totalVol > 0 && (
                           <span className="chip" style={{fontSize:11}}>⚡ {day.totalVol.toLocaleString()} lb</span>
                         )}
-                        {day.calEst ? (
-                          <span className="chip g" style={{fontSize:11}}>🔥 ~{day.calEst} kcal</span>
-                        ) : day.calDisplay > 0 ? (
-                          <span className="chip g" style={{fontSize:11}}>🔥 {day.calDisplay} cal</span>
-                        ) : apiKey && (day.workouts.length>0||day.cardioMin>0) ? (
-                          <span className="chip" style={{fontSize:11,cursor:"pointer",background:"#c8f13510",color:"#c8f135"}}
-                            onClick={()=>updateDailyCalEst(dateStr, logs, cardioLogs)}>
-                            🔥 Estimate cal
-                          </span>
-                        ) : null}
+
                       </div>
                     </div>
                     <button
@@ -1583,12 +1502,21 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* Day footer - PR count */}
-                  {day.workouts.filter(w=>w.isPR).length>0 && (
-                    <div style={{marginTop:10,padding:"6px 10px",background:"#ffd70010",borderRadius:8,border:"1px solid #ffd70020",fontSize:12,color:"#ffd700"}}>
-                      🏆 {day.workouts.filter(w=>w.isPR).length} new personal record{day.workouts.filter(w=>w.isPR).length>1?"s":""} today!
-                    </div>
-                  )}
+                  {/* Day footer */}
+                  <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+
+                    {day.gymTime && (
+                      <div style={{padding:"8px 12px",background:"#0d0d1a",borderRadius:9,border:"1px solid #9b5de520",fontSize:13,color:"#9b5de5",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span>⏱ Total time in gym</span>
+                        <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:16}}>{day.gymTime}</span>
+                      </div>
+                    )}
+                    {day.workouts.filter(w=>w.isPR).length>0 && (
+                      <div style={{padding:"8px 12px",background:"#ffd70008",borderRadius:9,border:"1px solid #ffd70020",fontSize:13,color:"#ffd700"}}>
+                        🏆 {day.workouts.filter(w=>w.isPR).length} new personal record{day.workouts.filter(w=>w.isPR).length>1?"s":""}!
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
