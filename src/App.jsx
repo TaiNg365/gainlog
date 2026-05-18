@@ -2418,5 +2418,6 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
         setShowRepeatModal={setShowRepeatModal}
         showToast={showToast}
       />}
+    </div>
   );
 }
