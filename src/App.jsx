@@ -748,6 +748,24 @@ export default function App() {
   const tPct = timerMax > 0 ? ((timerMax-timerSec)/timerMax)*100 : 0;
   const R=68, CIRC=2*Math.PI*R;
 
+  // Get last logged sets for a given machine name
+  const getLastSets = (machineName) => {
+    if (!machineName) return null;
+    const prev = logs.find(l => l.machine === machineName);
+    if (!prev || !prev.sets?.length) return null;
+    return prev.sets;
+  };
+
+  // Get suggestion label for a machine (e.g. "Last: 3x85lb")
+  const getLastLabel = (machineName) => {
+    const s = getLastSets(machineName);
+    if (!s) return null;
+    const w = s[0]?.weight, r = s[0]?.reps;
+    // Suggest slight progressive overload if all sets were same weight
+    const allSame = s.every(x => x.weight === w);
+    return { sets: s, weight: w, reps: r, allSame, count: s.length };
+  };
+
   const ctx = () => {
     const hist = logs.slice(0,20).map(l => l.date+" | "+l.machine+" | "+l.sets.map(s=>s.reps+"x"+s.weight+"lb").join(", ")+(l.isPR?" [PR]":"")).join("; ");
     const prStr = prs.slice(0,8).map(p => p.machine+":"+p.weight+"lb x"+p.reps).join(", ");
@@ -1102,6 +1120,11 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                           } else {
                             setMachine("__new"); setNewMach(ex.name); setMachSearch(ex.name); setMachOpen(false);
                           }
+                          // Auto-populate sets from last session for this exercise
+                          const last = getLastSets(ex.name);
+                          if (last) {
+                            setSets(last.map(s=>({id:uid(), reps:s.reps, weight:s.weight, done:false})));
+                          }
                         }}
                         style={{background:"#1c1c2c",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"#e8e8f0",cursor:"pointer"}}>
                         {ex.name.length>24?ex.name.slice(0,22)+"…":ex.name}
@@ -1165,9 +1188,21 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                         <>
                           {filtered2.length===0 && q && <div className="mach-none">No matches for "{machSearch}"</div>}
                           {filtered2.map(m=>(
-                            <div key={m} className={"mach-opt"+(machine===m?" sel":"")} onClick={()=>{setMachine(m);setMachSearch("");setMachOpen(false);}}>
-                              <span>{m}</span>
-                              {machine===m && <span>✓</span>}
+                            <div key={m} className={"mach-opt"+(machine===m?" sel":"")} onClick={()=>{
+                              setMachine(m); setMachSearch(""); setMachOpen(false);
+                              // Auto-populate sets from last session
+                              const last = getLastSets(m);
+                              if (last) {
+                                setSets(last.map(s=>({id:uid(), reps:s.reps, weight:s.weight, done:false})));
+                              } else {
+                                setSets([{id:uid(), reps:"", weight:"", done:false}]);
+                              }
+                            }}>
+                              <div style={{flex:1}}>
+                                <div>{m}</div>
+                                {(()=>{const info=getLastLabel(m); return info ? <div style={{fontSize:11,color:"#6a6a8a",marginTop:2}}>Last: {info.count}×{info.reps} @ {info.weight}lb</div> : null;})()}
+                              </div>
+                              {machine===m && <span style={{color:"#c8f135",flexShrink:0}}>✓</span>}
                             </div>
                           ))}
                           {machSearch && !machines.find(m=>m.toLowerCase()===machSearch.toLowerCase()) && (
@@ -1202,9 +1237,27 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
               </div>
 
               {/* ① Main sets - FIRST */}
-              <div style={{fontSize:12,color:"#6a6a8a",fontWeight:600,marginBottom:8}}>
-                {isSuper ? "① "+(machine==="__new"?newMach:machine||"Main Exercise")+" sets:" : "Sets:"}
-              </div>
+              {(()=>{
+                const mName = machine==="__new" ? newMach : machine;
+                const info = mName ? getLastLabel(mName) : null;
+                return (
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <div style={{fontSize:12,color:"#6a6a8a",fontWeight:600}}>
+                      {isSuper ? "① "+( mName||"Main Exercise")+" sets:" : "Sets:"}
+                    </div>
+                    {info && (
+                      <div style={{fontSize:11,color:"#4cc9f0",background:"#4cc9f010",borderRadius:6,padding:"3px 8px"}}>
+                        Last: {info.count}×{info.reps} @ {info.weight}lb
+                        {info.allSame && Number(info.weight)>0 && (
+                          <span style={{color:"#c8f135",marginLeft:5}}>
+                            → try {Number(info.weight)+5}lb?
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div style={{display:"grid",gridTemplateColumns:"24px 1fr 1fr 30px 24px",gap:5,marginBottom:6}}>
                 {["","Reps","Weight(lb)","",""].map((h,i)=><span key={i} style={{fontSize:10,color:"#6a6a8a",textAlign:"center",textTransform:"uppercase",letterSpacing:".7px"}}>{h}</span>)}
               </div>
