@@ -280,6 +280,34 @@ const CARDIO_MACHINES = [
   "Jump Rope","Cardio Other"
 ];
 
+// Muscle group mapping
+const MUSCLE_GROUPS = {
+  chest: ["Chest Press Machine","Incline DB Press","DB Chest Press","DB Fly","Pec Deck Machine","Cable Chest Fly","Smith Machine (Bench)","Barbell Bench Press","Barbell Bench Press (Smith)","Decline Bench Press","Incline Chest Press","Push-ups","Dips","DB Incline Press","Chest Fly","Cable Crossover","Low Cable Fly","High Cable Fly","Incline Cable Fly"],
+  back: ["Lat Pulldown","Seated Cable Row","DB Row","Barbell Row","Pull-ups","Chin-ups","Face Pull","Iso-Lateral Front Lat Pulldown","Hammer Strength Iso-Lateral Row","Cable Row","T-Bar Row","Seated Row","Bent Over Row","Smith Machine Row","Low Row","High Row","Straight Arm Pulldown","Reverse Fly","Rear Delt Fly","Row Machine"],
+  shoulders: ["DB Overhead Press","Machine Shoulder Press","Seated Overhead DB Press","DB Lateral Raise","DB Front Raise","Cable Lateral Raise","Arnold Press","Military Press","Smith Machine Overhead Press","Shoulder Press Machine","Upright Row","Cable Front Raise","Face Pull","Rear Delt Machine"],
+  arms: ["DB Curl","Barbell Curl","Barbell curl","EZ Bar Curl","Hammer Curl","DB Hammer Curl","Preacher Curl","Cable Curl","DB Tricep Kickback","Triceps Extension Machine","Tricep Pushdown","Skull Crusher","Close Grip Bench","Dips","DB Overhead Tricep","Cable Tricep","Seated Incline DB Curl","Incline Db Curl","DB Wrist Curl","Palm-Up Wrist Curl","Dependent Curl","Biceps Curl","Cable Curl","DB Curl","Barbell Curl","EZ Bar","Concentration Curl"],
+  legs: ["Leg Press","Leg Extension","Leg Curl","Romanian Deadlift","DB Romanian Deadlift","Squat","Smith Machine (Squat)","Hack Squat","Calf Raise","DB Lunge","DB Goblet Squat","DB Step Up","Leg Press Machine","Seated Leg Curl","Lying Leg Curl","Standing Calf Raise","Seated Calf Raise","Hip Abduction","Hip Adduction","Glute Kickback"],
+  core: ["Plank","Side Plank","Glute Bridge","Hip Thrust (BW)","Smith Machine (Hip Thrust)","DB Hip Thrust","Cable Crunch","Ab Machine","Hanging Leg Raise","Russian Twist","Dead Bug"],
+};
+
+const getMuscleGroup = (machineName) => {
+  const name = (machineName||"").toLowerCase();
+  for (const [group, exercises] of Object.entries(MUSCLE_GROUPS)) {
+    if (exercises.some(e => e.toLowerCase() === name || name.includes(e.toLowerCase().slice(0,8)))) return group;
+  }
+  // Fuzzy fallback
+  if (name.includes("curl") || name.includes("bicep") || name.includes("tricep") || name.includes("arm")) return "arms";
+  if (name.includes("press") && (name.includes("chest")||name.includes("bench")||name.includes("pec"))) return "chest";
+  if (name.includes("pull") || name.includes("row") || name.includes("lat") || name.includes("back")) return "back";
+  if (name.includes("shoulder") || name.includes("delt") || name.includes("lateral")) return "shoulders";
+  if (name.includes("leg") || name.includes("squat") || name.includes("calf") || name.includes("glute")) return "legs";
+  if (name.includes("press") && name.includes("shoulder")) return "shoulders";
+  return null;
+};
+
+const MUSCLE_COLORS = {chest:"#ff4d6d", back:"#4cc9f0", shoulders:"#9b5de5", arms:"#c8f135", legs:"#ff9f1c", core:"#00e096"};
+const MUSCLE_ICONS = {chest:"💪", back:"🦾", shoulders:"🏋️", arms:"💪", legs:"🦵", core:"⚡"};
+
 const LOGS0 = [
   {id:"h1",date:"16 Jun 2025",machine:"Smith Machine (Bench)",sets:[{reps:6,weight:75},{reps:6,weight:75},{reps:6,weight:75},{reps:6,weight:75}],superset:false,supersetWith:"",notes:"4x6",isPR:false},
   {id:"h2",date:"16 Jun 2025",machine:"Chest Press Machine",sets:[{reps:15,weight:85},{reps:15,weight:85},{reps:15,weight:85}],superset:false,supersetWith:"",notes:"",isPR:false},
@@ -415,6 +443,74 @@ function ScoreRing({score}) {
       </svg>
       <div className="srnum" style={{color:col}}>{score}</div>
       <div className="srlbl">BODY SCORE / 100</div>
+      {/* ── REPEAT LAST SESSION MODAL ── */}
+      {showRepeatModal && (()=>{
+        const lastSession = getLastSession();
+        if (!lastSession) return null;
+        return (
+          <>
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"#000000bb",zIndex:150}} onClick={()=>setShowRepeatModal(false)}/>
+            <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0d0d15",borderRadius:"20px 20px 0 0",border:"1px solid #1c1c2c",zIndex:160,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+              <div style={{padding:"18px 18px 12px",borderBottom:"1px solid #1c1c2c",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+                <div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:"#c8f135"}}>⚡ Repeat Last Session</div>
+                  <div style={{fontSize:12,color:"#6a6a8a",marginTop:2}}>{lastSession[0]?.date} · {lastSession.length} exercises · tap to pre-fill</div>
+                </div>
+                <button onClick={()=>setShowRepeatModal(false)} style={{background:"none",border:"none",color:"#6a6a8a",fontSize:24,cursor:"pointer",lineHeight:1}}>×</button>
+              </div>
+              <div style={{overflowY:"auto",padding:"12px 18px 24px"}}>
+                {lastSession.map((entry,i)=>(
+                  <div key={entry.id} style={{background:"#111118",borderRadius:12,padding:"12px 14px",marginBottom:9,border:"1px solid #1c1c2c",cursor:"pointer"}}
+                    onClick={()=>{
+                      setMachine(entry.machine);
+                      setMachSearch("");
+                      setMachOpen(false);
+                      setSets(entry.sets.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
+                      setIsSuper(false);
+                      setWNotes("");
+                      setShowRepeatModal(false);
+                      showToast("Pre-filled: "+entry.machine);
+                    }}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                      <div style={{fontWeight:600,fontSize:14,color:(()=>{const g=getMuscleGroup(entry.machine);return g?MUSCLE_COLORS[g]:"#e8e8f0";})()}}>
+                        {entry.machine}
+                        {entry.isPR && " 🏆"}
+                      </div>
+                      <div style={{fontSize:11,color:"#6a6a8a"}}>{entry.time||""}</div>
+                    </div>
+                    <div style={{fontSize:12,color:"#6a6a8a",marginBottom:6}}>
+                      {entry.sets.map((s,j)=>(
+                        <span key={j} style={{marginRight:10}}>
+                          <span style={{color:"#3a3a5a"}}>{j+1}: </span>
+                          <span style={{color:"#e8e8f0",fontFamily:"'JetBrains Mono',monospace"}}>{s.reps}×{s.weight}lb</span>
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{fontSize:11,color:"#c8f135"}}>Tap to load into Log Exercise →</div>
+                  </div>
+                ))}
+                <button className="btn bacc bfull" style={{marginTop:4}} onClick={()=>{
+                  // Load ALL exercises from last session as a quick plan
+                  lastSession.forEach((entry, i) => {
+                    if (i === 0) {
+                      setMachine(entry.machine);
+                      setSets(entry.sets.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
+                    }
+                  });
+                  setSelectedSessionPlan({
+                    id:"repeat",
+                    name:"Last Session ("+lastSession[0]?.date+")",
+                    exercises: lastSession.map(e=>({name:e.machine, sets:e.sets.length+"x"+e.sets[0]?.reps, weight:e.sets[0]?.weight+"lb"}))
+                  });
+                  setShowRepeatModal(false);
+                  showToast("Last session loaded into Today's Plan!");
+                }}>Load All as Today's Plan</button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
     </div>
   );
 }
@@ -562,6 +658,8 @@ export default function App() {
   const [dailyTab, setDailyTab] = useState("today");
   const [savingPlan, setSavingPlan] = useState(null);
   const [planNameInput, setPlanNameInput] = useState("");
+  const [selectedExerciseChart, setSelectedExerciseChart] = useState(null);
+  const [showRepeatModal, setShowRepeatModal] = useState(false);
 
 
   // ── ALL REFS ───────────────────────────────────────────────────────────────
@@ -764,6 +862,48 @@ export default function App() {
     // Suggest slight progressive overload if all sets were same weight
     const allSame = s.every(x => x.weight === w);
     return { sets: s, weight: w, reps: r, allSame, count: s.length };
+  };
+
+  // Volume progression data for a specific exercise
+  const getVolumeHistory = (machineName) => {
+    return logs
+      .filter(l => l.machine === machineName)
+      .map(l => ({
+        date: l.date,
+        vol: l.sets.reduce((s, x) => s + (Number(x.weight) * Number(x.reps)), 0),
+        maxWeight: Math.max(...l.sets.map(x => Number(x.weight))),
+        sets: l.sets.length,
+        time: l.time || ""
+      }))
+      .reverse(); // oldest first for chart
+  };
+
+  // Weekly muscle group balance (last 7 days)
+  const getMuscleBalance = () => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    const months = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+    const recentLogs = logs.filter(l => {
+      const parts = l.date.split(" ");
+      const d = new Date(parts[2], (months[parts[1]]||1)-1, parseInt(parts[0]));
+      return d >= cutoff;
+    });
+    const counts = {};
+    recentLogs.forEach(l => {
+      const g = getMuscleGroup(l.machine);
+      if (g) counts[g] = (counts[g]||0) + 1;
+    });
+    return counts;
+  };
+
+  // Get all unique exercises logged
+  const getAllExercises = () => [...new Set(logs.map(l => l.machine))].sort();
+
+  // Quick-repeat: get last session's exercises with their sets
+  const getLastSession = () => {
+    if (logs.length === 0) return null;
+    const lastDate = logs[0].date;
+    return logs.filter(l => l.date === lastDate);
   };
 
   const ctx = () => {
@@ -1078,6 +1218,57 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                 </div>
               )}
             </div>
+
+            {/* Muscle Group Balance - This Week */}
+            {(()=>{
+              const bal = getMuscleBalance();
+              const groups = Object.keys(MUSCLE_COLORS);
+              const max = Math.max(...groups.map(g=>bal[g]||0), 1);
+              const hasData = groups.some(g=>bal[g]>0);
+              if (!hasData) return null;
+              return (
+                <div className="card" style={{marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,letterSpacing:1.5,color:"#e8e8f0"}}>This Week</div>
+                    <div style={{fontSize:11,color:"#6a6a8a"}}>Muscle balance · 7 days</div>
+                  </div>
+                  <div style={{display:"flex",gap:6,alignItems:"flex-end",height:64}}>
+                    {groups.map(g=>{
+                      const count = bal[g]||0;
+                      const h = count > 0 ? Math.max((count/max)*52,8) : 4;
+                      return (
+                        <div key={g} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                          <div style={{fontSize:9,color:count>0?MUSCLE_COLORS[g]:"#3a3a5a",fontWeight:700}}>{count||""}</div>
+                          <div style={{width:"100%",height:h,background:count>0?MUSCLE_COLORS[g]:"#1c1c2c",borderRadius:"4px 4px 0 0",transition:"height .3s"}}/>
+                          <div style={{fontSize:8,color:count>0?"#6a6a8a":"#3a3a5a",textTransform:"uppercase",letterSpacing:.5}}>{g.slice(0,4)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {(()=>{
+                    const missing = groups.filter(g=>!bal[g]);
+                    return missing.length>0 && missing.length<5 ? (
+                      <div style={{marginTop:8,fontSize:11,color:"#ff9f1c",background:"#ff9f1c10",borderRadius:7,padding:"5px 9px"}}>
+                        ⚠️ Not trained this week: {missing.map(g=>g).join(", ")}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              );
+            })()}
+
+            {/* Quick Repeat Last Session */}
+            {getLastSession() && (
+              <div style={{background:"#111118",border:"1px solid #1c1c2c",borderRadius:12,padding:"11px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600,marginBottom:2}}>⚡ Repeat Last Session</div>
+                  <div style={{fontSize:11,color:"#6a6a8a"}}>{getLastSession()[0]?.date} · {getLastSession().length} exercises</div>
+                </div>
+                <button className="btn bacc" style={{fontSize:12,padding:"7px 14px"}} onClick={()=>setShowRepeatModal(true)}>
+                  Repeat
+                </button>
+              </div>
+            )}
 
             {/* Today's Plan selector */}
             <div className="card" style={{padding:"13px 15px"}}>
@@ -1766,15 +1957,78 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
         {tab==="records" && (
           <>
             <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,marginBottom:3}}>Personal Records</div>
-            <div style={{fontSize:12,color:"#6a6a8a",marginBottom:12}}>{prs.length} exercises tracked</div>
+            <div style={{fontSize:12,color:"#6a6a8a",marginBottom:12}}>{prs.length} exercises · tap for volume chart</div>
+
+            {/* Volume progression chart */}
+            {selectedExerciseChart && (()=>{
+              const data = getVolumeHistory(selectedExerciseChart);
+              if (!data.length) return null;
+              const maxVol = Math.max(...data.map(d=>d.vol),1);
+              const maxW = Math.max(...data.map(d=>d.maxWeight),1);
+              return (
+                <div className="card" style={{marginBottom:12,border:"1px solid #c8f13540"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1,color:"#c8f135"}}>{selectedExerciseChart}</div>
+                    <button onClick={()=>setSelectedExerciseChart(null)} style={{background:"none",border:"none",color:"#6a6a8a",fontSize:18,cursor:"pointer",lineHeight:1}}>×</button>
+                  </div>
+                  <div style={{display:"flex",gap:8,marginBottom:10}}>
+                    <span className="chip g" style={{fontSize:11}}>Max: {Math.max(...data.map(d=>d.maxWeight))}lb</span>
+                    <span className="chip" style={{fontSize:11}}>Sessions: {data.length}</span>
+                    <span className="chip" style={{fontSize:11,color:"#4cc9f0",background:"#4cc9f010"}}>
+                      {data.length>1 && data[data.length-1].vol > data[0].vol ? "📈 Trending up" : data.length>1 ? "📉 Check progression" : "First session"}
+                    </span>
+                  </div>
+                  {/* Volume bars */}
+                  <div style={{marginBottom:6}}>
+                    <div style={{fontSize:10,color:"#6a6a8a",marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Total Volume per session (lb)</div>
+                    <div style={{display:"flex",gap:3,alignItems:"flex-end",height:80,overflowX:"auto"}}>
+                      {data.map((d,i)=>{
+                        const h = Math.max((d.vol/maxVol)*72,3);
+                        const isLast = i===data.length-1;
+                        return (
+                          <div key={i} style={{flex:"0 0 auto",minWidth:28,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                            <div style={{fontSize:8,color:isLast?"#c8f135":"#6a6a8a",fontFamily:"'JetBrains Mono',monospace"}}>
+                              {d.vol>=1000?(d.vol/1000).toFixed(1)+"k":d.vol}
+                            </div>
+                            <div style={{width:22,height:h,background:isLast?"#c8f135":"#2a2a3a",borderRadius:"3px 3px 0 0",transition:"height .3s"}}/>
+                            <div style={{fontSize:7,color:"#3a3a5a",textAlign:"center",maxWidth:28,overflow:"hidden"}}>
+                              {d.date.split(" ").slice(0,2).join(" ")}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Max weight line */}
+                  <div>
+                    <div style={{fontSize:10,color:"#6a6a8a",marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Max weight per session (lb)</div>
+                    <div style={{display:"flex",gap:3,alignItems:"flex-end",height:60,overflowX:"auto"}}>
+                      {data.map((d,i)=>{
+                        const h = Math.max((d.maxWeight/maxW)*52,3);
+                        const isLast = i===data.length-1;
+                        return (
+                          <div key={i} style={{flex:"0 0 auto",minWidth:28,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                            <div style={{width:22,height:h,background:isLast?"#4cc9f0":"#1c2a3a",borderRadius:"3px 3px 0 0"}}/>
+                            <div style={{fontSize:7,color:"#3a3a5a"}}>{d.maxWeight}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="prg">
-              {prs.slice(0,20).map((p,i)=>(
-                <div key={i} className="prc">
+              {prs.slice(0,30).map((p,i)=>(
+                <div key={i} className="prc" style={{cursor:"pointer",border:selectedExerciseChart===p.machine?"1px solid #c8f13560":"1px solid transparent"}}
+                  onClick={()=>setSelectedExerciseChart(selectedExerciseChart===p.machine?null:p.machine)}>
                   {i<3 && <div style={{position:"absolute",top:8,right:10,fontSize:14}}>🏆</div>}
                   <div className="pre">{p.machine}</div>
                   <div className="prw">{p.weight}<span style={{fontSize:13,color:"#6a6a8a"}}> lb</span></div>
                   <div style={{fontSize:11,color:"#6a6a8a"}}>{p.reps} reps</div>
                   <div className="prdt">{p.date}</div>
+                  {(()=>{const hist=getVolumeHistory(p.machine); return hist.length>1?<div style={{fontSize:9,color:"#c8f13580",marginTop:3}}>{hist.length} sessions</div>:null;})()}
                 </div>
               ))}
             </div>
