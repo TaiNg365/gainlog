@@ -443,6 +443,7 @@ function ScoreRing({score}) {
       </svg>
       <div className="srnum" style={{color:col}}>{score}</div>
       <div className="srlbl">BODY SCORE / 100</div>
+    </div>
   );
 }
 
