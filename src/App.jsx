@@ -464,7 +464,12 @@ export default function App() {
   const [logs, setLogs] = useState(() => {
     try { const l = JSON.parse(localStorage.getItem("gl_logs")||"[]"); return l.length>0?l:LOGS0; } catch(e) { return LOGS0; }
   });
-  const [machines, setMachines] = useState(MACHINES);
+  const [machines, setMachines] = useState(() => {
+    try {
+      const custom = JSON.parse(localStorage.getItem("gl_machines") || "[]");
+      return custom.length > 0 ? [...new Set([...MACHINES, ...custom])] : MACHINES;
+    } catch(e) { return MACHINES; }
+  });
   const [bodyLog, setBodyLog] = useState(() => {
     try { const b = JSON.parse(localStorage.getItem("gl_body")||"null"); return b&&b.length>0?b:BODY0; } catch(e) { return BODY0; }
   });
@@ -602,7 +607,10 @@ export default function App() {
         ]);
         if (dbLogs.length > 0) { setLogs(dbLogs); localStorage.setItem("gl_logs", JSON.stringify(dbLogs)); }
         if (dbScans.length > 0) { setBodyLog(dbScans); localStorage.setItem("gl_body", JSON.stringify(dbScans)); }
-        if (dbMachines.length > 0) setMachines(dbMachines);
+        if (dbMachines.length > 0) {
+          // Merge DB machines with built-in list, remove dupes
+          setMachines(prev => [...new Set([...MACHINES, ...dbMachines])]);
+        }
         if (dbCardio.length > 0) { setCardioLogs(dbCardio); localStorage.setItem("gl_cardio", JSON.stringify(dbCardio)); }
         if (savedKey) { setApiKey(savedKey); setApiInput(savedKey); }
         else { setApiKey("AIzaSyC6y_m0elIpzLgaOqIZeDzNiTYm7szs-io"); setApiInput("AIzaSyC6y_m0elIpzLgaOqIZeDzNiTYm7szs-io"); }
@@ -727,6 +735,7 @@ export default function App() {
     const newPlan = {
       id: uid(), name: planName || "Plan from "+dateStr, color: "#c8f135",
       source: "logged", createdAt: new Date().toISOString(), rawText: "",
+      exercises,  // top-level for pre-fill in Today's Plan selector
       days: [{day: "Day 1", name: planName || dateStr, exercises}]
     };
     savePlansToStorage([...savedPlans, newPlan]);
@@ -762,7 +771,10 @@ export default function App() {
     const maxVol = Math.max(...valid.map(s => Number(s.weight)*Number(s.reps)));
     const isPR = !currentPR || maxVol > currentPR.vol;
     const entry = {id:uid(), date:today(), time:nowTime(), machine:m, sets:valid.map(s=>({...s,done:true})), superset:isSuper, supersetWith:isSuper?superWith:"", supersetSets:isSuper?superSets.filter(s=>s.reps&&s.weight).map(s=>({...s,done:true})):[], notes:wNotes, isPR};
-    if (machine==="__new" && newMach && !machines.includes(newMach)) { setMachines(p=>[...p,newMach]); addMachine(newMach).catch(()=>{}); }
+    if (machine==="__new" && newMach && !machines.includes(newMach)) {
+      setMachines(p=>[...p,newMach]);
+      addMachine(newMach).catch(e=>console.warn("addMachine failed:", e));
+    }
     const newLogs = [entry, ...logs];
     setLogs(newLogs);
     saveLog(entry).catch(()=>{});
@@ -1083,8 +1095,14 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                 <div>
                   <div style={{fontSize:11,color:"#6a6a8a",marginBottom:7}}>Tap to pre-fill exercise:</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                    {(selectedSessionPlan.exercises||[]).filter(ex=>ex.name&&!ex.name.startsWith("──")).map((ex,i)=>(
-                      <button key={i} onClick={()=>{setMachine(machines.includes(ex.name)?"":ex.name==="__new"?"__new":machines.includes(ex.name)?ex.name:"__new");setNewMach(ex.name);setMachSearch(ex.name);setMachOpen(false);}}
+                    {(selectedSessionPlan.exercises || selectedSessionPlan.days?.[0]?.exercises || []).filter(ex=>ex.name&&!ex.name.startsWith("──")).map((ex,i)=>(
+                      <button key={i} onClick={()=>{
+                          if (machines.includes(ex.name)) {
+                            setMachine(ex.name); setMachSearch(""); setMachOpen(false);
+                          } else {
+                            setMachine("__new"); setNewMach(ex.name); setMachSearch(ex.name); setMachOpen(false);
+                          }
+                        }}
                         style={{background:"#1c1c2c",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"#e8e8f0",cursor:"pointer"}}>
                         {ex.name.length>24?ex.name.slice(0,22)+"…":ex.name}
                       </button>
