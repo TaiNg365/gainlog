@@ -443,75 +443,6 @@ function ScoreRing({score}) {
       </svg>
       <div className="srnum" style={{color:col}}>{score}</div>
       <div className="srlbl">BODY SCORE / 100</div>
-      {/* ── REPEAT LAST SESSION MODAL ── */}
-      {showRepeatModal && (()=>{
-        const lastSession = getLastSession();
-        if (!lastSession) return null;
-        return (
-          <>
-            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"#000000bb",zIndex:150}} onClick={()=>setShowRepeatModal(false)}/>
-            <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0d0d15",borderRadius:"20px 20px 0 0",border:"1px solid #1c1c2c",zIndex:160,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
-              <div style={{padding:"18px 18px 12px",borderBottom:"1px solid #1c1c2c",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-                <div>
-                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:"#c8f135"}}>⚡ Repeat Last Session</div>
-                  <div style={{fontSize:12,color:"#6a6a8a",marginTop:2}}>{lastSession[0]?.date} · {lastSession.length} exercises · tap to pre-fill</div>
-                </div>
-                <button onClick={()=>setShowRepeatModal(false)} style={{background:"none",border:"none",color:"#6a6a8a",fontSize:24,cursor:"pointer",lineHeight:1}}>×</button>
-              </div>
-              <div style={{overflowY:"auto",padding:"12px 18px 24px"}}>
-                {lastSession.map((entry,i)=>(
-                  <div key={entry.id} style={{background:"#111118",borderRadius:12,padding:"12px 14px",marginBottom:9,border:"1px solid #1c1c2c",cursor:"pointer"}}
-                    onClick={()=>{
-                      setMachine(entry.machine);
-                      setMachSearch("");
-                      setMachOpen(false);
-                      setSets(entry.sets.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
-                      setIsSuper(false);
-                      setWNotes("");
-                      setShowRepeatModal(false);
-                      showToast("Pre-filled: "+entry.machine);
-                    }}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                      <div style={{fontWeight:600,fontSize:14,color:(()=>{const g=getMuscleGroup(entry.machine);return g?MUSCLE_COLORS[g]:"#e8e8f0";})()}}>
-                        {entry.machine}
-                        {entry.isPR && " 🏆"}
-                      </div>
-                      <div style={{fontSize:11,color:"#6a6a8a"}}>{entry.time||""}</div>
-                    </div>
-                    <div style={{fontSize:12,color:"#6a6a8a",marginBottom:6}}>
-                      {entry.sets.map((s,j)=>(
-                        <span key={j} style={{marginRight:10}}>
-                          <span style={{color:"#3a3a5a"}}>{j+1}: </span>
-                          <span style={{color:"#e8e8f0",fontFamily:"'JetBrains Mono',monospace"}}>{s.reps}×{s.weight}lb</span>
-                        </span>
-                      ))}
-                    </div>
-                    <div style={{fontSize:11,color:"#c8f135"}}>Tap to load into Log Exercise →</div>
-                  </div>
-                ))}
-                <button className="btn bacc bfull" style={{marginTop:4}} onClick={()=>{
-                  // Load ALL exercises from last session as a quick plan
-                  lastSession.forEach((entry, i) => {
-                    if (i === 0) {
-                      setMachine(entry.machine);
-                      setSets(entry.sets.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
-                    }
-                  });
-                  setSelectedSessionPlan({
-                    id:"repeat",
-                    name:"Last Session ("+lastSession[0]?.date+")",
-                    exercises: lastSession.map(e=>({name:e.machine, sets:e.sets.length+"x"+e.sets[0]?.reps, weight:e.sets[0]?.weight+"lb"}))
-                  });
-                  setShowRepeatModal(false);
-                  showToast("Last session loaded into Today's Plan!");
-                }}>Load All as Today's Plan</button>
-              </div>
-            </div>
-          </>
-        );
-      })()}
-
-    </div>
   );
 }
 
@@ -2393,6 +2324,68 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
         </div>
       )}
 
+
+      {/* ── REPEAT LAST SESSION MODAL ── */}
+      {showRepeatModal && (()=>{
+        const lastSession = getLastSession();
+        if (!lastSession) return null;
+        return (
+          <>
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"#000000bb",zIndex:150}} onClick={()=>setShowRepeatModal(false)}/>
+            <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"#0d0d15",borderRadius:"20px 20px 0 0",border:"1px solid #1c1c2c",zIndex:160,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+              <div style={{padding:"18px 18px 12px",borderBottom:"1px solid #1c1c2c",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+                <div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:"#c8f135"}}>⚡ Repeat Last Session</div>
+                  <div style={{fontSize:12,color:"#6a6a8a",marginTop:2}}>{lastSession[0]?.date} · {lastSession.length} exercises · tap one to pre-fill</div>
+                </div>
+                <button onClick={()=>setShowRepeatModal(false)} style={{background:"none",border:"none",color:"#6a6a8a",fontSize:24,cursor:"pointer",lineHeight:1}}>×</button>
+              </div>
+              <div style={{overflowY:"auto",padding:"12px 18px 30px"}}>
+                {lastSession.map((entry,i)=>(
+                  <div key={entry.id} style={{background:"#111118",borderRadius:12,padding:"12px 14px",marginBottom:9,border:"1px solid #1c1c2c",cursor:"pointer"}}
+                    onClick={()=>{
+                      setMachine(entry.machine);
+                      setMachSearch("");
+                      setMachOpen(false);
+                      setSets(entry.sets.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
+                      setIsSuper(false);
+                      setWNotes(entry.notes||"");
+                      setShowRepeatModal(false);
+                      setTab("workout");
+                      showToast("Pre-filled: "+entry.machine);
+                    }}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                      <div style={{fontWeight:600,fontSize:14,color:(()=>{const g=getMuscleGroup(entry.machine);return g?MUSCLE_COLORS[g]:"#e8e8f0";})()}}>
+                        {entry.machine}{entry.isPR?" 🏆":""}
+                      </div>
+                      <div style={{fontSize:11,color:"#6a6a8a"}}>{entry.time||""}</div>
+                    </div>
+                    <div style={{fontSize:12,color:"#6a6a8a",marginBottom:6}}>
+                      {entry.sets.map((s,j)=>(
+                        <span key={j} style={{marginRight:10}}>
+                          <span style={{color:"#3a3a5a"}}>{j+1}: </span>
+                          <span style={{color:"#e8e8f0",fontFamily:"'JetBrains Mono',monospace"}}>{s.reps}×{s.weight}lb</span>
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{fontSize:11,color:"#c8f135"}}>Tap to load into Log Exercise →</div>
+                  </div>
+                ))}
+                <button className="btn bacc bfull" style={{marginTop:4}} onClick={()=>{
+                  setSelectedSessionPlan({
+                    id:"repeat",
+                    name:"Last: "+lastSession[0]?.date,
+                    exercises: lastSession.map(e=>({name:e.machine,sets:e.sets.length+"x"+(e.sets[0]?.reps||""),weight:(e.sets[0]?.weight||"")+"lb"}))
+                  });
+                  setShowRepeatModal(false);
+                  setTab("workout");
+                  showToast("Loaded as today's plan — tap exercises to fill!");
+                }}>Load All as Today's Plan</button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
