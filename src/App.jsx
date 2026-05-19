@@ -482,7 +482,7 @@ function TrendChart({data, metricKey, color}) {
 
 
 function BodyMap({ balance, MUSCLE_COLORS }) {
-  const [view, setView] = React.useState("front");
+  const [view, setView] = useState("front");
 
   // Intensity: 0=none, 1=light, 2=medium, 3=heavy based on sets this week
   const intensity = (group) => {
