@@ -295,13 +295,14 @@ const getMuscleGroup = (machineName) => {
   for (const [group, exercises] of Object.entries(MUSCLE_GROUPS)) {
     if (exercises.some(e => e.toLowerCase() === name || name.includes(e.toLowerCase().slice(0,8)))) return group;
   }
-  // Fuzzy fallback
-  if (name.includes("curl") || name.includes("bicep") || name.includes("tricep") || name.includes("arm")) return "arms";
-  if (name.includes("press") && (name.includes("chest")||name.includes("bench")||name.includes("pec"))) return "chest";
-  if (name.includes("pull") || name.includes("row") || name.includes("lat") || name.includes("back")) return "back";
-  if (name.includes("shoulder") || name.includes("delt") || name.includes("lateral")) return "shoulders";
-  if (name.includes("leg") || name.includes("squat") || name.includes("calf") || name.includes("glute")) return "legs";
-  if (name.includes("press") && name.includes("shoulder")) return "shoulders";
+  // Fuzzy fallback - check legs BEFORE arms to avoid hamstring curl -> arms
+  if (name.includes("leg") || name.includes("squat") || name.includes("calf") || name.includes("glute") || name.includes("hamstring") || name.includes("quad") || name.includes("hip thrust") || name.includes("lunge")) return "legs";
+  if (name.includes("shoulder") || name.includes("delt") || name.includes("lateral raise") || name.includes("front raise") || name.includes("overhead press")) return "shoulders";
+  if (name.includes("press") && (name.includes("chest")||name.includes("bench")||name.includes("pec")||name.includes("incline")||name.includes("decline"))) return "chest";
+  if (name.includes("fly") || name.includes("pec deck") || name.includes("chest")) return "chest";
+  if (name.includes("pull") || name.includes("row") || name.includes("lat ") || name.includes("lat pull") || name.includes("back") || name.includes("rhom") || name.includes("trap")) return "back";
+  if (name.includes("curl") || name.includes("bicep") || name.includes("tricep") || name.includes("arm") || name.includes("pushdown") || name.includes("extension") && !name.includes("leg")) return "arms";
+  if (name.includes("plank") || name.includes("crunch") || name.includes("ab ") || name.includes("core")) return "core";
   return null;
 };
 
@@ -727,6 +728,16 @@ export default function App() {
     load();
   }, []);
 
+  // Auto-populate sets when machine selection changes
+  useEffect(() => {
+    const mName = machine === "__new" ? newMach : machine;
+    if (!mName) return;
+    const last = getLastSets(mName);
+    if (last && last.length > 0) {
+      setSets(last.map(s => ({id: uid(), reps: s.reps, weight: s.weight, done: false})));
+    }
+  }, [machine, newMach]);
+
   // Close machine dropdown on outside click
   useEffect(() => {
     const h = (e) => {
@@ -851,10 +862,19 @@ export default function App() {
   const tPct = timerMax > 0 ? ((timerMax-timerSec)/timerMax)*100 : 0;
   const R=68, CIRC=2*Math.PI*R;
 
-  // Get last logged sets for a given machine name
+  // Get last logged sets for a given machine name (fuzzy match)
   const getLastSets = (machineName) => {
     if (!machineName) return null;
-    const prev = logs.find(l => l.machine === machineName);
+    const name = machineName.toLowerCase().trim();
+    // Exact match first
+    let prev = logs.find(l => l.machine.toLowerCase().trim() === name);
+    // Fuzzy: check if one contains the other (min 6 chars)
+    if (!prev && name.length >= 6) {
+      prev = logs.find(l => {
+        const lname = l.machine.toLowerCase().trim();
+        return lname.includes(name.slice(0,8)) || name.includes(lname.slice(0,8));
+      });
+    }
     if (!prev || !prev.sets?.length) return null;
     return prev.sets;
   };
@@ -885,18 +905,20 @@ export default function App() {
 
   // Weekly muscle group balance (last 7 days)
   const getMuscleBalance = () => {
+    // Use all logs from last 7 days, count sets not just entries for better accuracy
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 7);
     const months = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
     const recentLogs = logs.filter(l => {
-      const parts = l.date.split(" ");
-      const d = new Date(parts[2], (months[parts[1]]||1)-1, parseInt(parts[0]));
+      const parts = (l.date||"").split(" ");
+      if (parts.length < 3) return false;
+      const d = new Date(parseInt(parts[2]), (months[parts[1]]||1)-1, parseInt(parts[0]));
       return d >= cutoff;
     });
     const counts = {};
     recentLogs.forEach(l => {
       const g = getMuscleGroup(l.machine);
-      if (g) counts[g] = (counts[g]||0) + 1;
+      if (g) counts[g] = (counts[g]||0) + (l.sets?.length||1);
     });
     return counts;
   };
@@ -1230,7 +1252,7 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
               const groups = Object.keys(MUSCLE_COLORS);
               const max = Math.max(...groups.map(g=>bal[g]||0), 1);
               const hasData = groups.some(g=>bal[g]>0);
-              if (!hasData) return null;
+              if (!hasData && logs.length === 0) return null;
               return (
                 <div className="card" style={{marginBottom:12}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1251,10 +1273,10 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                     })}
                   </div>
                   {(()=>{
-                    const missing = groups.filter(g=>!bal[g]);
-                    return missing.length>0 && missing.length<5 ? (
+                    const missing = groups.filter(g=>!bal[g] && g !== "core");
+                    return missing.length > 0 && missing.length < 5 ? (
                       <div style={{marginTop:8,fontSize:11,color:"#ff9f1c",background:"#ff9f1c10",borderRadius:7,padding:"5px 9px"}}>
-                        ⚠️ Not trained this week: {missing.map(g=>g).join(", ")}
+                        ⚠️ Not hit this week: {missing.join(", ")}
                       </div>
                     ) : null;
                   })()}
