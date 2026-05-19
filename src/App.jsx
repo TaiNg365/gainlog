@@ -480,6 +480,209 @@ function TrendChart({data, metricKey, color}) {
   );
 }
 
+
+function BodyMap({ balance, MUSCLE_COLORS }) {
+  const [view, setView] = React.useState("front");
+
+  // Intensity: 0=none, 1=light, 2=medium, 3=heavy based on sets this week
+  const intensity = (group) => {
+    const v = balance[group] || 0;
+    if (v === 0) return 0;
+    if (v <= 3) return 1;
+    if (v <= 8) return 2;
+    return 3;
+  };
+
+  const col = (group) => {
+    const i = intensity(group);
+    const base = MUSCLE_COLORS[group] || "#c8f135";
+    if (i === 0) return "#1c1c2c";
+    if (i === 1) return base + "55";
+    if (i === 2) return base + "aa";
+    return base;
+  };
+
+  const opacity = (group) => intensity(group) === 0 ? 0.15 : 0.85;
+
+  // Front view muscle paths (simplified anatomical SVG)
+  const FrontBody = () => (
+    <svg viewBox="0 0 160 340" width="140" height="300" style={{overflow:"visible"}}>
+      {/* Body outline */}
+      <ellipse cx="80" cy="30" rx="18" ry="22" fill="#1a1a2a" stroke="#2a2a3a" strokeWidth="1.5"/>
+      {/* Neck */}
+      <rect x="73" y="48" width="14" height="14" rx="3" fill="#1a1a2a" stroke="#2a2a3a" strokeWidth="1"/>
+      {/* Torso */}
+      <path d="M52 62 Q40 70 38 100 Q36 130 40 160 Q60 165 80 165 Q100 165 120 160 Q124 130 122 100 Q120 70 108 62 Z"
+        fill="#1a1a2a" stroke="#2a2a3a" strokeWidth="1.5"/>
+
+      {/* CHEST - pecs */}
+      <path d="M56 65 Q58 58 80 60 Q102 58 104 65 Q108 80 104 92 Q92 98 80 98 Q68 98 56 92 Q52 80 56 65 Z"
+        fill={col("chest")} opacity={opacity("chest")} style={{transition:"all .4s"}}/>
+      {/* Chest divider line */}
+      <line x1="80" y1="62" x2="80" y2="96" stroke="#0d0d18" strokeWidth="1" opacity="0.4"/>
+
+      {/* ABS / CORE */}
+      <rect x="63" y="98" width="34" height="12" rx="3" fill={col("core")} opacity={opacity("core")} style={{transition:"all .4s"}}/>
+      <rect x="63" y="113" width="34" height="12" rx="3" fill={col("core")} opacity={opacity("core")} style={{transition:"all .4s"}}/>
+      <rect x="63" y="128" width="34" height="12" rx="3" fill={col("core")} opacity={opacity("core")} style={{transition:"all .4s"}}/>
+      <line x1="80" y1="98" x2="80" y2="142" stroke="#0d0d18" strokeWidth="1" opacity="0.5"/>
+
+      {/* SHOULDERS - front delts */}
+      <ellipse cx="46" cy="72" rx="12" ry="10" fill={col("shoulders")} opacity={opacity("shoulders")} style={{transition:"all .4s"}}/>
+      <ellipse cx="114" cy="72" rx="12" ry="10" fill={col("shoulders")} opacity={opacity("shoulders")} style={{transition:"all .4s"}}/>
+
+      {/* ARMS - biceps (front) */}
+      <path d="M34 84 Q26 84 24 100 Q22 116 28 128 Q34 132 38 128 Q40 116 40 100 Q40 88 34 84 Z"
+        fill={col("arms")} opacity={opacity("arms")} style={{transition:"all .4s"}}/>
+      <path d="M126 84 Q134 84 136 100 Q138 116 132 128 Q126 132 122 128 Q120 116 120 100 Q120 88 126 84 Z"
+        fill={col("arms")} opacity={opacity("arms")} style={{transition:"all .4s"}}/>
+
+      {/* ARMS - forearms */}
+      <path d="M28 130 Q22 138 24 152 Q26 162 32 164 Q38 162 40 152 Q40 140 36 130 Z"
+        fill={col("arms")} opacity={opacity("arms") * 0.7} style={{transition:"all .4s"}}/>
+      <path d="M132 130 Q138 138 136 152 Q134 162 128 164 Q122 162 120 152 Q120 140 124 130 Z"
+        fill={col("arms")} opacity={opacity("arms") * 0.7} style={{transition:"all .4s"}}/>
+
+      {/* LEGS - quads (front) */}
+      <path d="M56 165 Q48 170 46 200 Q44 230 48 255 Q54 260 62 258 Q68 250 70 230 Q72 210 72 190 Q70 172 56 165 Z"
+        fill={col("legs")} opacity={opacity("legs")} style={{transition:"all .4s"}}/>
+      <path d="M104 165 Q112 170 114 200 Q116 230 112 255 Q106 260 98 258 Q92 250 90 230 Q88 210 88 190 Q90 172 104 165 Z"
+        fill={col("legs")} opacity={opacity("legs")} style={{transition:"all .4s"}}/>
+
+      {/* LEGS - calves */}
+      <path d="M48 258 Q44 268 46 285 Q48 296 54 298 Q60 296 62 285 Q64 272 62 260 Z"
+        fill={col("legs")} opacity={opacity("legs") * 0.7} style={{transition:"all .4s"}}/>
+      <path d="M112 258 Q116 268 114 285 Q112 296 106 298 Q100 296 98 285 Q96 272 98 260 Z"
+        fill={col("legs")} opacity={opacity("legs") * 0.7} style={{transition:"all .4s"}}/>
+
+      {/* Hips/groin area */}
+      <path d="M60 142 Q60 160 56 165 Q68 168 80 168 Q92 168 104 165 Q100 160 100 142 Z"
+        fill="#1a1a2a" stroke="#2a2a3a" strokeWidth="1"/>
+    </svg>
+  );
+
+  const BackBody = () => (
+    <svg viewBox="0 0 160 340" width="140" height="300" style={{overflow:"visible"}}>
+      {/* Head */}
+      <ellipse cx="80" cy="30" rx="18" ry="22" fill="#1a1a2a" stroke="#2a2a3a" strokeWidth="1.5"/>
+      {/* Neck */}
+      <rect x="73" y="48" width="14" height="14" rx="3" fill="#1a1a2a" stroke="#2a2a3a" strokeWidth="1"/>
+      {/* Torso */}
+      <path d="M52 62 Q40 70 38 100 Q36 130 40 160 Q60 165 80 165 Q100 165 120 160 Q124 130 122 100 Q120 70 108 62 Z"
+        fill="#1a1a2a" stroke="#2a2a3a" strokeWidth="1.5"/>
+
+      {/* BACK - lats + traps */}
+      <path d="M54 63 Q52 58 80 58 Q108 58 106 63 Q112 75 110 105 Q100 110 80 112 Q60 110 50 105 Q48 75 54 63 Z"
+        fill={col("back")} opacity={opacity("back")} style={{transition:"all .4s"}}/>
+      {/* Spine line */}
+      <line x1="80" y1="60" x2="80" y2="160" stroke="#0d0d18" strokeWidth="1.5" opacity="0.5"/>
+      {/* Lower back */}
+      <path d="M58 112 Q56 130 58 145 Q68 150 80 150 Q92 150 102 145 Q104 130 102 112 Q92 118 80 118 Q68 118 58 112 Z"
+        fill={col("back")} opacity={opacity("back") * 0.7} style={{transition:"all .4s"}}/>
+
+      {/* SHOULDERS - rear delts */}
+      <ellipse cx="46" cy="72" rx="12" ry="10" fill={col("shoulders")} opacity={opacity("shoulders")} style={{transition:"all .4s"}}/>
+      <ellipse cx="114" cy="72" rx="12" ry="10" fill={col("shoulders")} opacity={opacity("shoulders")} style={{transition:"all .4s"}}/>
+
+      {/* ARMS - triceps (back) */}
+      <path d="M34 84 Q26 84 24 100 Q22 116 28 128 Q34 132 38 128 Q40 116 40 100 Q40 88 34 84 Z"
+        fill={col("arms")} opacity={opacity("arms")} style={{transition:"all .4s"}}/>
+      <path d="M126 84 Q134 84 136 100 Q138 116 132 128 Q126 132 122 128 Q120 116 120 100 Q120 88 126 84 Z"
+        fill={col("arms")} opacity={opacity("arms")} style={{transition:"all .4s"}}/>
+      {/* Forearms back */}
+      <path d="M28 130 Q22 138 24 152 Q26 162 32 164 Q38 162 40 152 Q40 140 36 130 Z"
+        fill={col("arms")} opacity={opacity("arms") * 0.7} style={{transition:"all .4s"}}/>
+      <path d="M132 130 Q138 138 136 152 Q134 162 128 164 Q122 162 120 152 Q120 140 124 130 Z"
+        fill={col("arms")} opacity={opacity("arms") * 0.7} style={{transition:"all .4s"}}/>
+
+      {/* LEGS - hamstrings + glutes (back) */}
+      {/* Glutes */}
+      <path d="M58 155 Q50 160 48 178 Q50 188 60 190 Q70 188 76 175 Q78 165 76 158 Z"
+        fill={col("legs")} opacity={opacity("legs")} style={{transition:"all .4s"}}/>
+      <path d="M102 155 Q110 160 112 178 Q110 188 100 190 Q90 188 84 175 Q82 165 84 158 Z"
+        fill={col("legs")} opacity={opacity("legs")} style={{transition:"all .4s"}}/>
+      {/* Hamstrings */}
+      <path d="M48 190 Q44 215 46 238 Q50 255 58 258 Q66 254 68 238 Q72 215 72 190 Q64 192 48 190 Z"
+        fill={col("legs")} opacity={opacity("legs")} style={{transition:"all .4s"}}/>
+      <path d="M112 190 Q116 215 114 238 Q110 255 102 258 Q94 254 92 238 Q88 215 88 190 Q96 192 112 190 Z"
+        fill={col("legs")} opacity={opacity("legs")} style={{transition:"all .4s"}}/>
+      {/* Calves */}
+      <path d="M48 258 Q44 268 46 285 Q48 296 54 298 Q60 296 62 285 Q64 272 62 260 Z"
+        fill={col("legs")} opacity={opacity("legs") * 0.8} style={{transition:"all .4s"}}/>
+      <path d="M112 258 Q116 268 114 285 Q112 296 106 298 Q100 296 98 285 Q96 272 98 260 Z"
+        fill={col("legs")} opacity={opacity("legs") * 0.8} style={{transition:"all .4s"}}/>
+    </svg>
+  );
+
+  const groups = ["chest","back","shoulders","arms","legs","core"];
+
+  return (
+    <div style={{background:"#0d0d15",border:"1px solid #1c1c2c",borderRadius:14,padding:"14px 16px",marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,letterSpacing:1.5}}>This Week</div>
+          <div style={{fontSize:11,color:"#6a6a8a"}}>Muscle coverage · 7 days</div>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          {["front","back"].map(v=>(
+            <button key={v} onClick={()=>setView(v)} style={{
+              background:view===v?"#c8f13520":"#1c1c2c",
+              border:"1px solid "+(view===v?"#c8f13540":"#1c1c2c"),
+              borderRadius:7,padding:"4px 12px",fontSize:11,fontWeight:600,
+              color:view===v?"#c8f135":"#6a6a8a",cursor:"pointer",textTransform:"capitalize"
+            }}>{v}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+        {/* Body silhouette */}
+        <div style={{flexShrink:0,display:"flex",justifyContent:"center",background:"#111118",borderRadius:12,padding:"12px 8px"}}>
+          {view==="front" ? <FrontBody/> : <BackBody/>}
+        </div>
+
+        {/* Legend + stats */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",gap:7}}>
+          {groups.map(g=>{
+            const sets = balance[g]||0;
+            const color = MUSCLE_COLORS[g];
+            const i = intensity(g);
+            return (
+              <div key={g} style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:10,height:10,borderRadius:2,background:i>0?color:"#1c1c2c",flexShrink:0,border:"1px solid "+(i>0?color+"80":"#2a2a3a")}}/>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12,color:i>0?"#e8e8f0":"#3a3a5a",textTransform:"capitalize",fontWeight:i>0?600:400}}>{g}</span>
+                    <span style={{fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:i>0?color:"#3a3a5a"}}>{sets>0?sets+" sets":"—"}</span>
+                  </div>
+                  <div style={{height:3,background:"#1c1c2c",borderRadius:99,marginTop:3,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:Math.min(sets/15*100,100)+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div style={{marginTop:4,fontSize:10,color:"#3a3a5a",lineHeight:1.5}}>
+            {groups.filter(g=>!balance[g] && g!=="core").length > 0
+              ? "⚠️ Rest: "+groups.filter(g=>!balance[g] && g!=="core").join(", ")
+              : "✅ Full coverage!"}
+          </div>
+        </div>
+      </div>
+
+      {/* Intensity legend */}
+      <div style={{display:"flex",gap:14,marginTop:10,paddingTop:10,borderTop:"1px solid #1c1c2c20"}}>
+        {[["No activity","#1c1c2c"],["Light (1-3)","#c8f13555"],["Medium (4-8)","#c8f135aa"],["Heavy (9+)","#c8f135"]].map(([l,c])=>(
+          <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
+            <div style={{width:8,height:8,borderRadius:2,background:c}}/>
+            <span style={{fontSize:9,color:"#6a6a8a"}}>{l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RepeatModal({logs, getLastSession, getMuscleGroup, MUSCLE_COLORS, uid, setMachine, setMachSearch, setMachOpen, setSets, setIsSuper, setWNotes, setTab, setSelectedSessionPlan, setShowRepeatModal, showToast}) {
   const lastSession = getLastSession();
   if (!lastSession || lastSession.length === 0) return null;
@@ -1246,43 +1449,8 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
               )}
             </div>
 
-            {/* Muscle Group Balance - This Week */}
-            {(()=>{
-              const bal = getMuscleBalance();
-              const groups = Object.keys(MUSCLE_COLORS);
-              const max = Math.max(...groups.map(g=>bal[g]||0), 1);
-              const hasData = groups.some(g=>bal[g]>0);
-              if (!hasData && logs.length === 0) return null;
-              return (
-                <div className="card" style={{marginBottom:12}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,letterSpacing:1.5,color:"#e8e8f0"}}>This Week</div>
-                    <div style={{fontSize:11,color:"#6a6a8a"}}>Muscle balance · 7 days</div>
-                  </div>
-                  <div style={{display:"flex",gap:6,alignItems:"flex-end",height:64}}>
-                    {groups.map(g=>{
-                      const count = bal[g]||0;
-                      const h = count > 0 ? Math.max((count/max)*52,8) : 4;
-                      return (
-                        <div key={g} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                          <div style={{fontSize:9,color:count>0?MUSCLE_COLORS[g]:"#3a3a5a",fontWeight:700}}>{count||""}</div>
-                          <div style={{width:"100%",height:h,background:count>0?MUSCLE_COLORS[g]:"#1c1c2c",borderRadius:"4px 4px 0 0",transition:"height .3s"}}/>
-                          <div style={{fontSize:8,color:count>0?"#6a6a8a":"#3a3a5a",textTransform:"uppercase",letterSpacing:.5}}>{g.slice(0,4)}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {(()=>{
-                    const missing = groups.filter(g=>!bal[g] && g !== "core");
-                    return missing.length > 0 && missing.length < 5 ? (
-                      <div style={{marginTop:8,fontSize:11,color:"#ff9f1c",background:"#ff9f1c10",borderRadius:7,padding:"5px 9px"}}>
-                        ⚠️ Not hit this week: {missing.join(", ")}
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              );
-            })()}
+            {/* Muscle Group Balance - Body Map */}
+            {logs.length > 0 && <BodyMap balance={getMuscleBalance()} MUSCLE_COLORS={MUSCLE_COLORS}/>}
 
             {/* Quick Repeat Last Session */}
             {getLastSession() && (
