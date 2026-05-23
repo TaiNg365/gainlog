@@ -282,27 +282,73 @@ const CARDIO_MACHINES = [
 
 // Muscle group mapping
 const MUSCLE_GROUPS = {
-  chest: ["Chest Press Machine","Incline DB Press","DB Chest Press","DB Fly","Pec Deck Machine","Cable Chest Fly","Smith Machine (Bench)","Barbell Bench Press","Barbell Bench Press (Smith)","Decline Bench Press","Incline Chest Press","Push-ups","Dips","DB Incline Press","Chest Fly","Cable Crossover","Low Cable Fly","High Cable Fly","Incline Cable Fly"],
-  back: ["Lat Pulldown","Seated Cable Row","DB Row","Barbell Row","Pull-ups","Chin-ups","Face Pull","Iso-Lateral Front Lat Pulldown","Hammer Strength Iso-Lateral Row","Cable Row","T-Bar Row","Seated Row","Bent Over Row","Smith Machine Row","Low Row","High Row","Straight Arm Pulldown","Reverse Fly","Rear Delt Fly","Row Machine"],
-  shoulders: ["DB Overhead Press","Machine Shoulder Press","Seated Overhead DB Press","DB Lateral Raise","DB Front Raise","Cable Lateral Raise","Arnold Press","Military Press","Smith Machine Overhead Press","Shoulder Press Machine","Upright Row","Cable Front Raise","Face Pull","Rear Delt Machine"],
-  arms: ["DB Curl","Barbell Curl","Barbell curl","EZ Bar Curl","Hammer Curl","DB Hammer Curl","Preacher Curl","Cable Curl","DB Tricep Kickback","Triceps Extension Machine","Tricep Pushdown","Skull Crusher","Close Grip Bench","Dips","DB Overhead Tricep","Cable Tricep","Seated Incline DB Curl","Incline Db Curl","DB Wrist Curl","Palm-Up Wrist Curl","Dependent Curl","Biceps Curl","Cable Curl","DB Curl","Barbell Curl","EZ Bar","Concentration Curl"],
-  legs: ["Leg Press","Leg Extension","Leg Curl","Romanian Deadlift","DB Romanian Deadlift","Squat","Smith Machine (Squat)","Hack Squat","Calf Raise","DB Lunge","DB Goblet Squat","DB Step Up","Leg Press Machine","Seated Leg Curl","Lying Leg Curl","Standing Calf Raise","Seated Calf Raise","Hip Abduction","Hip Adduction","Glute Kickback"],
-  core: ["Plank","Side Plank","Glute Bridge","Hip Thrust (BW)","Smith Machine (Hip Thrust)","DB Hip Thrust","Cable Crunch","Ab Machine","Hanging Leg Raise","Russian Twist","Dead Bug"],
+  chest: [
+    "Chest Press Machine","Incline DB Press","DB Chest Press","DB Fly","Pec Deck Machine",
+    "Cable Chest Fly","Smith Machine (Bench)","Barbell Bench Press","Barbell Bench Press (Smith)",
+    "Decline Bench Press","Incline Chest Press","Push-ups","DB Incline Press","Chest Fly",
+    "Cable Crossover","Low Cable Fly","High Cable Fly","Incline Cable Fly","Pec Fly",
+    "Chest Fly Machine","Supine Press","Incline Press","Decline Press"
+  ],
+  back: [
+    "Lat Pulldown","Seated Cable Row","DB Row","Barbell Row","Pull-ups","Chin-ups",
+    "Iso-Lateral Front Lat Pulldown","Hammer Strength Iso-Lateral Row","Cable Row","T-Bar Row",
+    "Seated Row","Bent Over Row","Smith Machine Row","Low Row","High Row",
+    "Straight Arm Pulldown","Reverse Fly","Rear Delt Fly","Row Machine","Cable Row Machine",
+    "Hammer Strength Row","Iso Lateral Row","Iso-Lateral Row"
+  ],
+  shoulders: [
+    "DB Overhead Press","Machine Shoulder Press","Seated Overhead DB Press","DB Lateral Raise",
+    "DB Front Raise","Cable Lateral Raise","Arnold Press","Military Press",
+    "Smith Machine Overhead Press","Shoulder Press Machine","Upright Row","Cable Front Raise",
+    "Face Pull","Rear Delt Machine","Rear Delt Fly","Hammer Strength Shoulder Press",
+    "Hammer Strength Mts Shoulder Press","Cable Lateral Raise","Seated Lateral Raise",
+    "Lateral Raise Machine","Rear Delt Row","Reverse Pec Deck"
+  ],
+  arms: [
+    "DB Curl","Barbell Curl","Barbell curl","EZ Bar Curl","Hammer Curl","DB Hammer Curl",
+    "Preacher Curl","Cable Curl","DB Tricep Kickback","Triceps Extension Machine",
+    "Tricep Pushdown","Skull Crusher","Close Grip Bench","Dips","DB Overhead Tricep",
+    "Cable Tricep","Seated Incline DB Curl","Incline Db Curl","DB Wrist Curl",
+    "Palm-Up Wrist Curl","Dependent Curl","Biceps Curl","Concentration Curl",
+    "EZ Bar","Spider Curl","Cable Overhead Tricep","Rope Pushdown","Bar Pushdown",
+    "Tricep Dip","Triceps Pushdown","Overhead Tricep Extension"
+  ],
+  legs: [
+    "Leg Press","Leg Extension","Leg Curl","Romanian Deadlift","DB Romanian Deadlift",
+    "Squat","Smith Machine (Squat)","Hack Squat","Calf Raise","DB Lunge","DB Goblet Squat",
+    "DB Step Up","Leg Press Machine","Seated Leg Curl","Lying Leg Curl","Standing Calf Raise",
+    "Seated Calf Raise","Hip Abduction","Hip Adduction","Glute Kickback",
+    "Hack Squat Machine","Leg Extension Machine","Lying Hamstring Curl","Hamstring Curl",
+    "Bulgarian Split Squat","Walking Lunge","Box Jump","Hip Thrust Machine"
+  ],
+  core: [
+    "Plank","Side Plank","Glute Bridge","Hip Thrust (BW)","Smith Machine (Hip Thrust)",
+    "DB Hip Thrust","Cable Crunch","Ab Machine","Hanging Leg Raise","Russian Twist","Dead Bug",
+    "Cable Crunch","Decline Crunch","Bicycle Crunch","Leg Raise","Ab Rollout","Pallof Press"
+  ],
 };
 
 const getMuscleGroup = (machineName) => {
-  const name = (machineName||"").toLowerCase();
+  const name = (machineName||"").toLowerCase().trim();
+  // 1. Exact match first
   for (const [group, exercises] of Object.entries(MUSCLE_GROUPS)) {
-    if (exercises.some(e => e.toLowerCase() === name || name.includes(e.toLowerCase().slice(0,8)))) return group;
+    if (exercises.some(e => e.toLowerCase().trim() === name)) return group;
   }
-  // Fuzzy fallback - check legs BEFORE arms to avoid hamstring curl -> arms
-  if (name.includes("leg") || name.includes("squat") || name.includes("calf") || name.includes("glute") || name.includes("hamstring") || name.includes("quad") || name.includes("hip thrust") || name.includes("lunge")) return "legs";
-  if (name.includes("shoulder") || name.includes("delt") || name.includes("lateral raise") || name.includes("front raise") || name.includes("overhead press")) return "shoulders";
-  if (name.includes("press") && (name.includes("chest")||name.includes("bench")||name.includes("pec")||name.includes("incline")||name.includes("decline"))) return "chest";
-  if (name.includes("fly") || name.includes("pec deck") || name.includes("chest")) return "chest";
-  if (name.includes("pull") || name.includes("row") || name.includes("lat ") || name.includes("lat pull") || name.includes("back") || name.includes("rhom") || name.includes("trap")) return "back";
-  if (name.includes("curl") || name.includes("bicep") || name.includes("tricep") || name.includes("arm") || name.includes("pushdown") || name.includes("extension") && !name.includes("leg")) return "arms";
-  if (name.includes("plank") || name.includes("crunch") || name.includes("ab ") || name.includes("core")) return "core";
+  // 2. Partial match (exercise name contained in input or vice versa, min 6 chars)
+  for (const [group, exercises] of Object.entries(MUSCLE_GROUPS)) {
+    if (exercises.some(e => {
+      const el = e.toLowerCase().trim();
+      return el.length >= 6 && (name.includes(el) || el.includes(name));
+    })) return group;
+  }
+  // 3. Fuzzy fallback — ORDER MATTERS (specific before general)
+  if (name.includes("hamstring") || name.includes("quad") || name.includes("calf") || name.includes("glute") || name.includes("lunge") || name.includes("hip thrust") || /\bleg\b/.test(name) || name.includes("squat")) return "legs";
+  if (name.includes("shoulder") || name.includes("delt") || name.includes("lateral raise") || name.includes("front raise") || (name.includes("overhead") && name.includes("press")) || name.includes("face pull") || name.includes("rear delt")) return "shoulders";
+  if (name.includes("tricep") || name.includes("pushdown") || name.includes("skull") || (name.includes("extension") && !name.includes("leg"))) return "arms";
+  if (name.includes("curl") || name.includes("bicep")) return "arms";
+  if (name.includes("row") || name.includes("pulldown") || name.includes("pull-down") || name.includes("pull up") || name.includes("chin") || name.includes("lat ") || (name.includes("pull") && !name.includes("pullover"))) return "back";
+  if (name.includes("bench") || name.includes("chest") || name.includes("pec") || name.includes("fly") || (name.includes("press") && !name.includes("leg") && !name.includes("shoulder") && !name.includes("overhead"))) return "chest";
+  if (name.includes("plank") || name.includes("crunch") || name.includes("ab ") || name.includes("core") || name.includes("hip thrust")) return "core";
   return null;
 };
 
@@ -864,6 +910,11 @@ export default function App() {
   // History
   const [histFilter, setHistFilter] = useState("all");
   const [newMachInp, setNewMachInp] = useState("");
+  const [customMuscleMap, setCustomMuscleMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("gl_muscle_map") || "{}"); } catch(e) { return {}; }
+  });
+  const [muscleEditorOpen, setMuscleEditorOpen] = useState(false);
+  const [muscleEditSearch, setMuscleEditSearch] = useState("");
   const [dailyTab, setDailyTab] = useState("today");
   const [savingPlan, setSavingPlan] = useState(null);
   const [planNameInput, setPlanNameInput] = useState("");
@@ -1092,6 +1143,17 @@ export default function App() {
     return { sets: s, weight: w, reps: r, allSame, count: s.length };
   };
 
+  // Override getMuscleGroup with custom mappings
+  const getMusGroup = (machineName) => {
+    const name = (machineName||"").toLowerCase().trim();
+    // Check custom map first (exact match, case-insensitive)
+    for (const [ex, group] of Object.entries(customMuscleMap)) {
+      if (ex.toLowerCase().trim() === name) return group;
+    }
+    // Fall back to default
+    return getMuscleGroup(machineName);
+  };
+
   // Volume progression data for a specific exercise
   const getVolumeHistory = (machineName) => {
     return logs
@@ -1120,7 +1182,7 @@ export default function App() {
     });
     const counts = {};
     recentLogs.forEach(l => {
-      const g = getMuscleGroup(l.machine);
+      const g = getMusGroup(l.machine);
       if (g) counts[g] = (counts[g]||0) + (l.sets?.length||1);
     });
     return counts;
@@ -2390,6 +2452,115 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                     <input className="inp" placeholder="Add exercise/machine..." value={newMachInp} onChange={e=>setNewMachInp(e.target.value)} style={{flex:1}}/>
                     <button className="btn bacc" onClick={()=>{if(newMachInp&&!machines.includes(newMachInp)){setMachines(p=>[...p,newMachInp]);addMachine(newMachInp).catch(()=>{});setNewMachInp("");showToast("Added!");}}}>Add</button>
                   </div>
+                </div>
+
+                {/* Muscle Classification Editor */}
+                <div className="card">
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:muscleEditorOpen?12:0}}>
+                    <div className="ct" style={{margin:0}}>Muscle Classification</div>
+                    <button onClick={()=>setMuscleEditorOpen(v=>!v)} style={{background:"#1c1c2c",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,color:"#c8f135",cursor:"pointer",fontWeight:600}}>
+                      {muscleEditorOpen ? "Close" : "Edit"}
+                    </button>
+                  </div>
+                  {muscleEditorOpen && (
+                    <>
+                      <div style={{fontSize:12,color:"#6a6a8a",marginBottom:12,lineHeight:1.6}}>
+                        Override which muscle group any exercise maps to. These take priority over the defaults and are saved permanently.
+                      </div>
+
+                      {/* Search & assign */}
+                      <div style={{background:"#111118",borderRadius:10,padding:12,marginBottom:12,border:"1px solid #1c1c2c"}}>
+                        <div style={{fontSize:11,color:"#c8f135",fontWeight:600,marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Assign Exercise to Group</div>
+                        <input className="inp" style={{marginBottom:8}} placeholder="Search exercise name..."
+                          value={muscleEditSearch} onChange={e=>setMuscleEditSearch(e.target.value)}/>
+                        {muscleEditSearch.length > 1 && (
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            {/* Show matching exercises */}
+                            {machines.filter(m=>m.toLowerCase().includes(muscleEditSearch.toLowerCase())).slice(0,6).map(m=>(
+                              <div key={m} style={{background:"#15151e",borderRadius:8,padding:"9px 12px",border:"1px solid #1c1c2c"}}>
+                                <div style={{fontSize:13,fontWeight:600,marginBottom:7}}>{m}</div>
+                                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                                  {Object.keys(MUSCLE_COLORS).map(g=>{
+                                    const current = getMusGroup(m);
+                                    const isCustom = customMuscleMap[m] === g;
+                                    const isCurrent = current === g;
+                                    return (
+                                      <button key={g} onClick={()=>{
+                                        setCustomMuscleMap(prev=>({...prev,[m]:g}));
+                                        showToast(m+" → "+g);
+                                      }} style={{
+                                        padding:"4px 10px",borderRadius:6,border:"1px solid "+(isCurrent?MUSCLE_COLORS[g]+"80":"#1c1c2c"),
+                                        background:isCurrent?MUSCLE_COLORS[g]+"20":"#111118",
+                                        color:isCurrent?MUSCLE_COLORS[g]:"#6a6a8a",
+                                        fontSize:11,fontWeight:600,cursor:"pointer",
+                                        outline:isCustom?"2px solid "+MUSCLE_COLORS[g]:"none"
+                                      }}>
+                                        {isCustom?"★ ":""}{g}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {customMuscleMap[m] && (
+                                  <button onClick={()=>{
+                                    const next = {...customMuscleMap};
+                                    delete next[m];
+                                    setCustomMuscleMap(next);
+                                    showToast("Reset to default");
+                                  }} style={{marginTop:6,background:"none",border:"none",fontSize:10,color:"#ff4d6d",cursor:"pointer",padding:0}}>
+                                    × Reset to default ({getMuscleGroup(m)||"unclassified"})
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {/* Also allow typing a new name not in list */}
+                            {!machines.find(m=>m.toLowerCase()===muscleEditSearch.toLowerCase()) && (
+                              <div style={{background:"#15151e",borderRadius:8,padding:"9px 12px",border:"1px solid #1c1c2c"}}>
+                                <div style={{fontSize:13,fontWeight:600,marginBottom:7,color:"#6a6a8a",fontStyle:"italic"}}>"{muscleEditSearch}"</div>
+                                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                                  {Object.keys(MUSCLE_COLORS).map(g=>(
+                                    <button key={g} onClick={()=>{
+                                      setCustomMuscleMap(prev=>({...prev,[muscleEditSearch]:g}));
+                                      showToast(muscleEditSearch+" → "+g);
+                                    }} style={{
+                                      padding:"4px 10px",borderRadius:6,border:"1px solid #1c1c2c",
+                                      background:"#111118",color:"#6a6a8a",fontSize:11,fontWeight:600,cursor:"pointer"
+                                    }}>{g}</button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Show all custom overrides */}
+                      {Object.keys(customMuscleMap).length > 0 && (
+                        <div>
+                          <div style={{fontSize:11,color:"#6a6a8a",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>
+                            Your Overrides ({Object.keys(customMuscleMap).length})
+                          </div>
+                          {Object.entries(customMuscleMap).map(([ex, g])=>(
+                            <div key={ex} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",background:"#111118",borderRadius:8,marginBottom:5,border:"1px solid "+MUSCLE_COLORS[g]+"30"}}>
+                              <div>
+                                <span style={{fontSize:13,fontWeight:600}}>{ex}</span>
+                                <span style={{fontSize:11,color:"#6a6a8a",marginLeft:8}}>was: {getMuscleGroup(ex)||"unclassified"}</span>
+                              </div>
+                              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                <span style={{fontSize:12,fontWeight:700,color:MUSCLE_COLORS[g],background:MUSCLE_COLORS[g]+"20",padding:"2px 8px",borderRadius:5}}>★ {g}</span>
+                                <button onClick={()=>{const next={...customMuscleMap};delete next[ex];setCustomMuscleMap(next);}} style={{background:"none",border:"none",color:"#ff4d6d",fontSize:16,cursor:"pointer",lineHeight:1}}>×</button>
+                              </div>
+                            </div>
+                          ))}
+                          <button className="btn bred" style={{width:"100%",marginTop:8,fontSize:12}} onClick={()=>{if(window.confirm("Clear all custom mappings?"))setCustomMuscleMap({});}}>
+                            Clear All Overrides
+                          </button>
+                        </div>
+                      )}
+                      {Object.keys(customMuscleMap).length === 0 && (
+                        <div style={{textAlign:"center",padding:"12px 0",fontSize:12,color:"#3a3a5a"}}>No custom overrides yet. Search an exercise above to assign it.</div>
+                      )}
+                    </>
+                  )}
                 </div>
               </>
             )}
