@@ -2476,7 +2476,13 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                         {muscleEditSearch.length > 1 && (
                           <div style={{display:"flex",flexDirection:"column",gap:6}}>
                             {/* Search across machines list AND all logged exercises */}
-                            {[...new Set([...machines, ...logs.map(l=>l.machine)])].filter(m=>m.toLowerCase().includes(muscleEditSearch.toLowerCase())).slice(0,8).map(m=>(
+                            {(()=>{
+                              // Search pool: machines list + logged exercises + all known exercises in MUSCLE_GROUPS
+                              const allKnown = Object.values(MUSCLE_GROUPS).flat();
+                              const pool = [...new Set([...machines, ...logs.map(l=>l.machine), ...allKnown])];
+                              const q = muscleEditSearch.toLowerCase();
+                              return pool.filter(m => m.toLowerCase().includes(q)).slice(0,10);
+                            })().map(m=>(
                               <div key={m} style={{background:"#15151e",borderRadius:8,padding:"9px 12px",border:"1px solid #1c1c2c"}}>
                                 <div style={{fontSize:13,fontWeight:600,marginBottom:7}}>{m}</div>
                                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
