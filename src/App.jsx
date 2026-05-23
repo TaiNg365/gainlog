@@ -2475,8 +2475,8 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                           value={muscleEditSearch} onChange={e=>setMuscleEditSearch(e.target.value)}/>
                         {muscleEditSearch.length > 1 && (
                           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                            {/* Show matching exercises */}
-                            {machines.filter(m=>m.toLowerCase().includes(muscleEditSearch.toLowerCase())).slice(0,6).map(m=>(
+                            {/* Search across machines list AND all logged exercises */}
+                            {[...new Set([...machines, ...logs.map(l=>l.machine)])].filter(m=>m.toLowerCase().includes(muscleEditSearch.toLowerCase())).slice(0,8).map(m=>(
                               <div key={m} style={{background:"#15151e",borderRadius:8,padding:"9px 12px",border:"1px solid #1c1c2c"}}>
                                 <div style={{fontSize:13,fontWeight:600,marginBottom:7}}>{m}</div>
                                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
