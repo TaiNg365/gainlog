@@ -1631,7 +1631,9 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                   <div className="mach-dropdown">
                     {(() => {
                       const q = machSearch.toLowerCase();
-                      const filtered2 = machines.filter(m=>m.toLowerCase().includes(q));
+                      // Search machines list + all previously logged exercises (merged, deduped)
+                      const allExercises = [...new Set([...machines, ...logs.map(l=>l.machine)])];
+                      const filtered2 = allExercises.filter(m=>m.toLowerCase().includes(q));
                       return (
                         <>
                           {filtered2.length===0 && q && <div className="mach-none">No matches for "{machSearch}"</div>}
@@ -1750,7 +1752,8 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                         {(() => {
                           const q = superSearch.toLowerCase();
                           const mainMach = machine==="__new" ? newMach : machine;
-                          const filtered2 = machines.filter(m=>m!==mainMach&&m.toLowerCase().includes(q));
+                          const allExercises2 = [...new Set([...machines, ...logs.map(l=>l.machine)])];
+                          const filtered2 = allExercises2.filter(m=>m!==mainMach&&m.toLowerCase().includes(q));
                           return (
                             <>
                               {filtered2.length===0 && q && <div className="mach-none">No matches for "{superSearch}"</div>}
