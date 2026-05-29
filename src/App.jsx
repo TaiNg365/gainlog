@@ -1572,25 +1572,47 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
               )}
               {selectedSessionPlan && !planSelectOpen && (
                 <div>
-                  <div style={{fontSize:11,color:"#6a6a8a",marginBottom:7}}>Tap to pre-fill exercise:</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                    {(selectedSessionPlan.exercises || selectedSessionPlan.days?.[0]?.exercises || []).filter(ex=>ex.name&&!ex.name.startsWith("──")).map((ex,i)=>(
-                      <button key={i} onClick={()=>{
-                          if (machines.includes(ex.name)) {
-                            setMachine(ex.name); setMachSearch(""); setMachOpen(false);
-                          } else {
-                            setMachine("__new"); setNewMach(ex.name); setMachSearch(ex.name); setMachOpen(false);
-                          }
-                          // Auto-populate sets from last session for this exercise
-                          const last = getLastSets(ex.name);
-                          if (last) {
-                            setSets(last.map(s=>({id:uid(), reps:s.reps, weight:s.weight, done:false})));
-                          }
-                        }}
-                        style={{background:"#1c1c2c",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"#e8e8f0",cursor:"pointer"}}>
-                        {ex.name.length>24?ex.name.slice(0,22)+"…":ex.name}
-                      </button>
-                    ))}
+                  <div style={{fontSize:11,color:"#6a6a8a",marginBottom:7}}>
+                    Tap = main exercise &nbsp;·&nbsp; <span style={{color:"#4cc9f0"}}>⚡ Tap = superset</span>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {(selectedSessionPlan.exercises || selectedSessionPlan.days?.[0]?.exercises || []).filter(ex=>ex.name&&!ex.name.startsWith("──")).map((ex,i)=>{
+                      const cleanName = ex.name.replace(" ⚡","");
+                      const grp = getMusGroup(cleanName);
+                      const grpColor = grp ? MUSCLE_COLORS[grp] : "#6a6a8a";
+                      const fillMain = () => {
+                        if (machines.includes(cleanName)) { setMachine(cleanName); setMachSearch(""); setMachOpen(false); }
+                        else { setMachine("__new"); setNewMach(cleanName); setMachSearch(cleanName); setMachOpen(false); }
+                        const last = getLastSets(cleanName);
+                        if (last) setSets(last.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
+                      };
+                      const fillSuper = () => {
+                        setIsSuper(true);
+                        setSuperWith(cleanName);
+                        setSuperSearch(cleanName);
+                        setSuperOpen(false);
+                        const last = getLastSets(cleanName);
+                        if (last) setSuperSets(last.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
+                        showToast("⚡ "+cleanName+" set as paired exercise");
+                      };
+                      return (
+                        <div key={i} style={{display:"flex",alignItems:"stretch",borderRadius:8,overflow:"hidden",border:"1px solid "+(grpColor+"40"),marginBottom:2}}>
+                          {/* Muscle group color strip */}
+                          <div style={{width:4,background:grpColor,flexShrink:0}}/>
+                          {/* Main exercise button */}
+                          <button onClick={fillMain} style={{background:"#1c1c2c",border:"none",padding:"6px 10px",fontSize:12,color:"#e8e8f0",cursor:"pointer",textAlign:"left"}}>
+                            <div style={{maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                              {cleanName}
+                            </div>
+                            {grp && <div style={{fontSize:9,color:grpColor,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>{grp}</div>}
+                          </button>
+                          {/* Superset button */}
+                          <button onClick={fillSuper} title="Add as superset" style={{background:"#4cc9f015",border:"none",borderLeft:"1px solid #4cc9f020",padding:"6px 9px",cursor:"pointer",color:"#4cc9f0",fontSize:13,flexShrink:0}}>
+                            ⚡
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
