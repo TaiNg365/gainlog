@@ -1092,11 +1092,24 @@ export default function App() {
   const saveLogAsNewPlan = async (dateStr, planName) => {
     const dayData = getDayLog(dateStr);
     if (dayData.total === 0) return;
-    const exercises = dayData.workouts.map(w => ({
-      name: w.machine,
-      sets: w.sets.length + "x" + (w.sets[0]?.reps||"?"),
-      weight: (w.sets[0]?.weight||"?") + "lb"
-    }));
+    const exercises = [];
+    dayData.workouts.forEach(w => {
+      // Add main exercise
+      exercises.push({
+        name: w.machine,
+        sets: w.sets.length + "x" + (w.sets[0]?.reps||"?"),
+        weight: (w.sets[0]?.weight||"?") + "lb"
+      });
+      // Add superset paired exercise right below
+      if (w.superset && w.supersetWith) {
+        const ssets = w.supersetSets || w.sets; // fall back to main sets if no separate superset sets
+        exercises.push({
+          name: w.supersetWith + " ⚡",
+          sets: ssets.length + "x" + (ssets[0]?.reps||"?"),
+          weight: (ssets[0]?.weight||"?") + "lb"
+        });
+      }
+    });
     if (dayData.cardio.length > 0) {
       dayData.cardio.forEach(c => exercises.push({name: c.machine + " (cardio)", sets: c.duration + " min", weight: c.calDisplay ? c.calDisplay + " cal" : ""}));
     }
