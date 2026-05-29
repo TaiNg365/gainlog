@@ -729,6 +729,71 @@ function BodyMap({ balance, MUSCLE_COLORS }) {
   );
 }
 
+function QuickClassifyModal({exercise, customMuscleMap, setCustomMuscleMap, MUSCLE_COLORS, getMuscleGroup, getMusGroup, onClose, showToast}) {
+  if (!exercise) return null;
+  const current = getMusGroup(exercise);
+  const defaultGroup = getMuscleGroup(exercise);
+  const isOverridden = customMuscleMap[exercise] !== undefined;
+
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+      <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"#000000bb"}} onClick={onClose}/>
+      <div style={{position:"relative",background:"#0d0d15",borderRadius:"20px 20px 0 0",border:"1px solid #1c1c2c",width:"100%",maxWidth:430,zIndex:1,padding:"20px 18px 36px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+          <div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:"#e8e8f0",marginBottom:3}}>{exercise}</div>
+            <div style={{fontSize:12,color:"#6a6a8a"}}>
+              Current: <span style={{color:current?MUSCLE_COLORS[current]:"#6a6a8a",fontWeight:600}}>{current||"unclassified"}</span>
+              {isOverridden && <span style={{color:"#c8f135",marginLeft:6}}>★ custom</span>}
+              {!isOverridden && defaultGroup && <span style={{color:"#3a3a5a",marginLeft:6}}>(auto)</span>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:"#1c1c2c",border:"none",color:"#e8e8f0",width:32,height:32,borderRadius:"50%",fontSize:18,cursor:"pointer",flexShrink:0}}>×</button>
+        </div>
+
+        <div style={{fontSize:12,color:"#6a6a8a",marginBottom:12}}>Select the correct muscle group:</div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+          {Object.entries(MUSCLE_COLORS).map(([g, col])=>{
+            const isCurrent = current === g;
+            const isCustom = customMuscleMap[exercise] === g;
+            return (
+              <button key={g} onClick={()=>{
+                setCustomMuscleMap(prev=>({...prev,[exercise]:g}));
+                showToast("✅ "+exercise+" → "+g);
+                onClose();
+              }} style={{
+                padding:"12px 8px",borderRadius:10,cursor:"pointer",textAlign:"center",
+                background: isCurrent ? col+"25" : "#111118",
+                border: "2px solid "+(isCurrent ? col : "#1c1c2c"),
+                transition:"all .15s"
+              }}>
+                <div style={{fontSize:18,marginBottom:4}}>
+                  {{chest:"💪",back:"🦾",shoulders:"🏋️",arms:"💪",legs:"🦵",core:"⚡"}[g]||"●"}
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:isCurrent?col:"#e8e8f0",textTransform:"capitalize"}}>{g}</div>
+                {isCustom && <div style={{fontSize:9,color:"#c8f135",marginTop:2}}>★ yours</div>}
+              </button>
+            );
+          })}
+        </div>
+
+        {isOverridden && (
+          <button onClick={()=>{
+            const next = {...customMuscleMap};
+            delete next[exercise];
+            setCustomMuscleMap(next);
+            showToast("Reset to default: "+(defaultGroup||"unclassified"));
+            onClose();
+          }} style={{width:"100%",background:"#ff4d6d15",border:"1px solid #ff4d6d40",borderRadius:10,padding:"10px",color:"#ff4d6d",fontSize:13,cursor:"pointer",fontWeight:600}}>
+            Reset to default ({defaultGroup||"unclassified"})
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RepeatModal({logs, getLastSession, getMuscleGroup, MUSCLE_COLORS, uid, setMachine, setMachSearch, setMachOpen, setSets, setIsSuper, setWNotes, setTab, setSelectedSessionPlan, setShowRepeatModal, showToast}) {
   const lastSession = getLastSession();
   if (!lastSession || lastSession.length === 0) return null;
@@ -915,6 +980,7 @@ export default function App() {
   });
   const [muscleEditorOpen, setMuscleEditorOpen] = useState(false);
   const [muscleEditSearch, setMuscleEditSearch] = useState("");
+  const [quickClassify, setQuickClassify] = useState(null); // exercise name to quick-classify
   const [dailyTab, setDailyTab] = useState("today");
   const [savingPlan, setSavingPlan] = useState(null);
   const [planNameInput, setPlanNameInput] = useState("");
@@ -2022,10 +2088,27 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                         {/* Activity card */}
                         <div style={{background:"#0d0d15",borderRadius:10,padding:"10px 13px",border:"1px solid "+(item.type==="cardio"?"#4cc9f020":item.isPR?"#ffd70020":"#1c1c2c")}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                            <div style={{fontWeight:600,fontSize:14,color:item.isPR?"#ffd700":item.type==="cardio"?"#4cc9f0":"#e8e8f0"}}>
-                              {item.machine}
-                              {item.isPR && " 🏆"}
-                              {item.superset && " ⚡"}
+                            <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                              <div style={{fontWeight:600,fontSize:14,color:item.isPR?"#ffd700":item.type==="cardio"?"#4cc9f0":"#e8e8f0"}}>
+                                {item.machine}
+                                {item.isPR && " 🏆"}
+                                {item.superset && " ⚡"}
+                              </div>
+                              {item.type==="workout" && (()=>{
+                                const g = getMusGroup(item.machine);
+                                return (
+                                  <button onClick={()=>setQuickClassify(item.machine)} style={{
+                                    background: g ? MUSCLE_COLORS[g]+"20" : "#1c1c2c",
+                                    border: "1px solid "+(g ? MUSCLE_COLORS[g]+"50" : "#2a2a3a"),
+                                    borderRadius:5,padding:"1px 7px",fontSize:10,
+                                    color: g ? MUSCLE_COLORS[g] : "#3a3a5a",
+                                    cursor:"pointer",fontWeight:600,textTransform:"capitalize",
+                                    flexShrink:0
+                                  }}>
+                                    {g || "? classify"}
+                                  </button>
+                                );
+                              })()}
                             </div>
                             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"#6a6a8a",flexShrink:0,marginLeft:8}}>
                               {item.time||""}
@@ -2343,7 +2426,14 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
             {filtered.map(l=>(
               <div key={l.id} className={"li"+(l.isPR?" pr":l.superset?" ss":"")}>
                 <div className="lid">{l.date}</div>
-                <div className="lim">{l.machine} {l.isPR&&"🏆"}</div>
+                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                  <div className="lim" style={{margin:0}}>{l.machine} {l.isPR&&"🏆"}</div>
+                  {(()=>{const g=getMusGroup(l.machine); return (
+                    <button onClick={()=>setQuickClassify(l.machine)} style={{background:g?MUSCLE_COLORS[g]+"20":"#1c1c2c",border:"1px solid "+(g?MUSCLE_COLORS[g]+"50":"#2a2a3a"),borderRadius:5,padding:"1px 7px",fontSize:10,color:g?MUSCLE_COLORS[g]:"#3a3a5a",cursor:"pointer",fontWeight:600,textTransform:"capitalize",flexShrink:0}}>
+                      {g||"? classify"}
+                    </button>
+                  );})()}
+                </div>
                 {l.superset && <div style={{fontSize:11,color:"#4cc9f0",marginBottom:3}}>⚡ SS w/ {l.supersetWith}</div>}
                 <div className="lis">{l.sets.map((s,i)=>(i+1)+": "+s.reps+"x"+s.weight+"lb").join(" · ")}</div>
                 {l.notes && <div style={{fontSize:11,color:"#3a3a5a",marginTop:3,fontStyle:"italic"}}>{l.notes}</div>}
@@ -2804,6 +2894,20 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
       )}
 
 
+
+      {/* ── QUICK CLASSIFY MODAL ── */}
+      {quickClassify && (
+        <QuickClassifyModal
+          exercise={quickClassify}
+          customMuscleMap={customMuscleMap}
+          setCustomMuscleMap={setCustomMuscleMap}
+          MUSCLE_COLORS={MUSCLE_COLORS}
+          getMuscleGroup={getMuscleGroup}
+          getMusGroup={getMusGroup}
+          onClose={()=>setQuickClassify(null)}
+          showToast={showToast}
+        />
+      )}
 
       {/* ── REPEAT LAST SESSION MODAL ── */}
       {showRepeatModal && <RepeatModal
