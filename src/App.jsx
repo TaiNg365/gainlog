@@ -980,7 +980,11 @@ export default function App() {
   });
   const [muscleEditorOpen, setMuscleEditorOpen] = useState(false);
   const [muscleEditSearch, setMuscleEditSearch] = useState("");
-  const [quickClassify, setQuickClassify] = useState(null); // exercise name to quick-classify
+  const [quickClassify, setQuickClassify] = useState(null);
+  const [activeSession, setActiveSession] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("gl_session") || "null"); } catch(e) { return null; }
+    // {id, startTime (ISO), date, label}
+  });
   const [dailyTab, setDailyTab] = useState("today");
   const [savingPlan, setSavingPlan] = useState(null);
   const [planNameInput, setPlanNameInput] = useState("");
@@ -1018,6 +1022,7 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("gl_body", JSON.stringify(bodyLog)); } catch(e) {} }, [bodyLog]);
   useEffect(() => { try { localStorage.setItem("gl_water", JSON.stringify({waterMl,waterGoal})); } catch(e) {} }, [waterMl, waterGoal]);
   useEffect(() => { try { localStorage.setItem("gl_plans", JSON.stringify(savedPlans)); } catch(e) {} }, [savedPlans]);
+  useEffect(() => { try { localStorage.setItem("gl_session", JSON.stringify(activeSession)); } catch(e) {} }, [activeSession]);
 
 
   // Load from Supabase
@@ -1137,15 +1142,24 @@ export default function App() {
     const totalVol = w.reduce((s,l)=>s+l.sets.reduce((ss,set)=>ss+(Number(set.weight)*Number(set.reps)),0),0);
     const cardioMin = c.reduce((s,l)=>s+(Number(l.duration)||0),0);
     const calDisplay = c.reduce((s,l)=>s+(Number(l.calDisplay)||0),0);
-    // Gym time = from first to last logged entry
-    const times = all.filter(x=>x.time).map(x=>x.time);
+    // Gym time = from session logs if available, else first/last entry
+    const sessionsForDay = JSON.parse(localStorage.getItem("gl_sessions_log") || "[]")
+      .filter(s => s.date === dateStr);
     let gymTime = null;
-    if (times.length >= 2) {
-      const first = times[0], last = times[times.length-1];
-      const [fh,fm] = first.split(":").map(Number);
-      const [lh,lm] = last.split(":").map(Number);
-      const diffMin = (lh*60+lm) - (fh*60+fm);
-      if (diffMin > 0) gymTime = diffMin >= 60 ? Math.floor(diffMin/60)+"h "+(diffMin%60)+"m" : diffMin+"m";
+    if (sessionsForDay.length > 0) {
+      // Sum all completed sessions for this day
+      const totalMin = sessionsForDay.reduce((sum, s) => sum + (s.durationMin || 0), 0);
+      if (totalMin > 0) gymTime = totalMin >= 60 ? Math.floor(totalMin/60)+"h "+(totalMin%60)+"m" : totalMin+"m";
+    } else {
+      // Fallback: first to last entry (old behavior)
+      const times = all.filter(x=>x.time).map(x=>x.time);
+      if (times.length >= 2) {
+        const first = times[0], last = times[times.length-1];
+        const [fh,fm] = first.split(":").map(Number);
+        const [lh,lm] = last.split(":").map(Number);
+        const diffMin = (lh*60+lm) - (fh*60+fm);
+        if (diffMin > 0) gymTime = diffMin >= 60 ? Math.floor(diffMin/60)+"h "+(diffMin%60)+"m" : diffMin+"m";
+      }
     }
     return {date:dateStr, workouts:w, cardio:c, all, total:w.length+c.length, totalVol, cardioMin, calDisplay, gymTime};
   };
@@ -1492,6 +1506,45 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
 
       {/* Header */}
       <div className="hdr">
+        {/* Active Session Banner */}
+        {activeSession && (
+          <div style={{background:"#c8f13515",borderBottom:"1px solid #c8f13530",padding:"7px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:9}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:"#c8f135",animation:"pulse 1.5s infinite",flexShrink:0}}/>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:"#c8f135"}}>{activeSession.label} in progress</div>
+                <div style={{fontSize:10,color:"#6a6a8a"}}>
+                  Started {activeSession.startTime} · {(()=>{
+                    const start = new Date(activeSession.startISO);
+                    const diffMin = Math.floor((Date.now()-start)/60000);
+                    return diffMin >= 60 ? Math.floor(diffMin/60)+"h "+( diffMin%60)+"m" : diffMin+"m";
+                  })()}
+                </div>
+              </div>
+            </div>
+            <button onClick={()=>{
+              const start = new Date(activeSession.startISO);
+              const durationMin = Math.floor((Date.now()-start)/60000);
+              // Save completed session to sessions log
+              const sessLog = JSON.parse(localStorage.getItem("gl_sessions_log")||"[]");
+              sessLog.push({
+                id: activeSession.id,
+                date: activeSession.date,
+                label: activeSession.label,
+                startTime: activeSession.startTime,
+                endTime: nowTime(),
+                startISO: activeSession.startISO,
+                endISO: new Date().toISOString(),
+                durationMin
+              });
+              localStorage.setItem("gl_sessions_log", JSON.stringify(sessLog));
+              setActiveSession(null);
+              showToast("✅ Session ended · "+( durationMin >= 60 ? Math.floor(durationMin/60)+"h "+(durationMin%60)+"m" : durationMin+"m")+" logged");
+            }} style={{background:"#ff4d6d20",border:"1px solid #ff4d6d50",borderRadius:8,padding:"5px 12px",fontSize:12,color:"#ff4d6d",cursor:"pointer",fontWeight:700,flexShrink:0}}>
+              End Session
+            </button>
+          </div>
+        )}
         <div className="htop">
           <div>
             <div className="logo">GAINLOG</div>
@@ -1565,6 +1618,50 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
         {/* ── WORKOUT TAB ── */}
         {tab==="workout" && (
           <>
+            {/* Session Start/End */}
+            {!activeSession ? (
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                {[["Morning","🌅"],["Afternoon","☀️"],["Evening","🌙"]].map(([label, icon])=>(
+                  <button key={label} onClick={()=>{
+                    const session = {
+                      id: uid(),
+                      date: today(),
+                      label: icon+" "+label,
+                      startTime: nowTime(),
+                      startISO: new Date().toISOString()
+                    };
+                    setActiveSession(session);
+                    showToast(icon+" "+label+" session started!");
+                  }} style={{
+                    flex:1,background:"#111118",border:"1px solid #1c1c2c",
+                    borderRadius:10,padding:"10px 4px",cursor:"pointer",textAlign:"center"
+                  }}>
+                    <div style={{fontSize:18,marginBottom:2}}>{icon}</div>
+                    <div style={{fontSize:11,fontWeight:600,color:"#e8e8f0"}}>{label}</div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div style={{background:"#c8f13510",border:"1px solid #c8f13530",borderRadius:10,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:"#c8f135",animation:"pulse 1.5s infinite",flexShrink:0}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#c8f135"}}>{activeSession.label}</div>
+                  <div style={{fontSize:11,color:"#6a6a8a"}}>Started {activeSession.startTime}</div>
+                </div>
+                <button onClick={()=>{
+                  const start = new Date(activeSession.startISO);
+                  const durationMin = Math.floor((Date.now()-start)/60000);
+                  const sessLog = JSON.parse(localStorage.getItem("gl_sessions_log")||"[]");
+                  sessLog.push({id:activeSession.id,date:activeSession.date,label:activeSession.label,startTime:activeSession.startTime,endTime:nowTime(),startISO:activeSession.startISO,endISO:new Date().toISOString(),durationMin});
+                  localStorage.setItem("gl_sessions_log", JSON.stringify(sessLog));
+                  setActiveSession(null);
+                  showToast("✅ Session ended · "+(durationMin >= 60 ? Math.floor(durationMin/60)+"h "+(durationMin%60)+"m" : durationMin+"m")+" logged");
+                }} style={{background:"#ff4d6d20",border:"1px solid #ff4d6d50",borderRadius:8,padding:"6px 14px",fontSize:12,color:"#ff4d6d",cursor:"pointer",fontWeight:700,flexShrink:0}}>
+                  End Session
+                </button>
+              </div>
+            )}
+
             {/* AI Coach */}
             <div className="aib">
               <div className="aihdr">
@@ -2154,12 +2251,35 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                   {/* Day footer */}
                   <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
 
-                    {day.gymTime && (
-                      <div style={{padding:"8px 12px",background:"#0d0d1a",borderRadius:9,border:"1px solid #9b5de520",fontSize:13,color:"#9b5de5",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span>⏱ Total time in gym</span>
-                        <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:16}}>{day.gymTime}</span>
-                      </div>
-                    )}
+                    {(()=>{
+                      const sessLog = JSON.parse(localStorage.getItem("gl_sessions_log")||"[]").filter(s=>s.date===dateStr);
+                      if (sessLog.length > 0) {
+                        return (
+                          <div style={{background:"#0d0d1a",borderRadius:9,border:"1px solid #9b5de520",overflow:"hidden"}}>
+                            {sessLog.map((s,i)=>(
+                              <div key={s.id} style={{padding:"8px 12px",borderBottom:i<sessLog.length-1?"1px solid #1c1c2c20":"none",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                <span style={{fontSize:12,color:"#9b5de5"}}>{s.label} &nbsp;{s.startTime}→{s.endTime}</span>
+                                <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:13,color:"#9b5de5"}}>
+                                  {s.durationMin >= 60 ? Math.floor(s.durationMin/60)+"h "+(s.durationMin%60)+"m" : s.durationMin+"m"}
+                                </span>
+                              </div>
+                            ))}
+                            <div style={{padding:"7px 12px",background:"#9b5de510",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <span style={{fontSize:12,color:"#9b5de5",fontWeight:700}}>⏱ Total gym time</span>
+                              <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:14,color:"#9b5de5"}}>
+                                {(()=>{const t=sessLog.reduce((s,x)=>s+(x.durationMin||0),0); return t>=60?Math.floor(t/60)+"h "+(t%60)+"m":t+"m";})()}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return day.gymTime ? (
+                        <div style={{padding:"8px 12px",background:"#0d0d1a",borderRadius:9,border:"1px solid #9b5de520",fontSize:13,color:"#9b5de5",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span>⏱ Time in gym (estimated)</span>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:16}}>{day.gymTime}</span>
+                        </div>
+                      ) : null;
+                    })()}
                     {day.workouts.filter(w=>w.isPR).length>0 && (
                       <div style={{padding:"8px 12px",background:"#ffd70008",borderRadius:9,border:"1px solid #ffd70020",fontSize:13,color:"#ffd700"}}>
                         🏆 {day.workouts.filter(w=>w.isPR).length} new personal record{day.workouts.filter(w=>w.isPR).length>1?"s":""}!
