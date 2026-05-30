@@ -1735,48 +1735,82 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
               )}
               {selectedSessionPlan && !planSelectOpen && (
                 <div>
-                  <div style={{fontSize:11,color:"#6a6a8a",marginBottom:7}}>
-                    Tap = main exercise &nbsp;·&nbsp; <span style={{color:"#4cc9f0"}}>⚡ Tap = superset</span>
-                  </div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                    {(selectedSessionPlan.exercises || selectedSessionPlan.days?.[0]?.exercises || []).filter(ex=>ex.name&&!ex.name.startsWith("──")).map((ex,i)=>{
-                      const cleanName = ex.name.replace(" ⚡","");
-                      const grp = getMusGroup(cleanName);
-                      const grpColor = grp ? MUSCLE_COLORS[grp] : "#6a6a8a";
-                      const fillMain = () => {
-                        if (machines.includes(cleanName)) { setMachine(cleanName); setMachSearch(""); setMachOpen(false); }
-                        else { setMachine("__new"); setNewMach(cleanName); setMachSearch(cleanName); setMachOpen(false); }
-                        const last = getLastSets(cleanName);
-                        if (last) setSets(last.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
-                      };
-                      const fillSuper = () => {
-                        setIsSuper(true);
-                        setSuperWith(cleanName);
-                        setSuperSearch(cleanName);
-                        setSuperOpen(false);
-                        const last = getLastSets(cleanName);
-                        if (last) setSuperSets(last.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
-                        showToast("⚡ "+cleanName+" set as paired exercise");
-                      };
-                      return (
-                        <div key={i} style={{display:"flex",alignItems:"stretch",borderRadius:8,overflow:"hidden",border:"1px solid "+(grpColor+"40"),marginBottom:2}}>
-                          {/* Muscle group color strip */}
-                          <div style={{width:4,background:grpColor,flexShrink:0}}/>
-                          {/* Main exercise button */}
-                          <button onClick={fillMain} style={{background:"#1c1c2c",border:"none",padding:"6px 10px",fontSize:12,color:"#e8e8f0",cursor:"pointer",textAlign:"left"}}>
-                            <div style={{maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                              {cleanName}
+                  {(()=>{
+                    const todayLogged = new Set(logs.filter(l=>l.date===today()).map(l=>l.machine.toLowerCase().trim()));
+                    const allExs = (selectedSessionPlan.exercises || selectedSessionPlan.days?.[0]?.exercises || []).filter(ex=>ex.name&&!ex.name.startsWith("──"));
+                    const done = allExs.filter(ex=>todayLogged.has(ex.name.replace(" ⚡","").toLowerCase().trim()));
+                    const remaining = allExs.filter(ex=>!todayLogged.has(ex.name.replace(" ⚡","").toLowerCase().trim()));
+                    return (
+                      <>
+                        {/* Progress bar */}
+                        {allExs.length > 0 && (
+                          <div style={{marginBottom:9}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                              <div style={{fontSize:11,color:"#6a6a8a"}}>
+                                Tap = main &nbsp;·&nbsp; <span style={{color:"#4cc9f0"}}>⚡ = superset</span>
+                              </div>
+                              <div style={{fontSize:11,fontWeight:700,color:done.length===allExs.length?"#c8f135":"#6a6a8a"}}>
+                                {done.length}/{allExs.length} done
+                                {done.length===allExs.length && " 🎉"}
+                              </div>
                             </div>
-                            {grp && <div style={{fontSize:9,color:grpColor,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>{grp}</div>}
-                          </button>
-                          {/* Superset button */}
-                          <button onClick={fillSuper} title="Add as superset" style={{background:"#4cc9f015",border:"none",borderLeft:"1px solid #4cc9f020",padding:"6px 9px",cursor:"pointer",color:"#4cc9f0",fontSize:13,flexShrink:0}}>
-                            ⚡
-                          </button>
+                            <div style={{height:4,background:"#1c1c2c",borderRadius:99,overflow:"hidden"}}>
+                              <div style={{height:"100%",width:(done.length/allExs.length*100)+"%",background:"#c8f135",borderRadius:99,transition:"width .4s"}}/>
+                            </div>
+                          </div>
+                        )}
+                        {/* Remaining exercises */}
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:remaining.length>0&&done.length>0?8:0}}>
+                          {remaining.map((ex,i)=>{
+                            const cleanName = ex.name.replace(" ⚡","");
+                            const grp = getMusGroup(cleanName);
+                            const grpColor = grp ? MUSCLE_COLORS[grp] : "#6a6a8a";
+                            const fillMain = () => {
+                              if (machines.includes(cleanName)) { setMachine(cleanName); setMachSearch(""); setMachOpen(false); }
+                              else { setMachine("__new"); setNewMach(cleanName); setMachSearch(cleanName); setMachOpen(false); }
+                              const last = getLastSets(cleanName);
+                              if (last) setSets(last.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
+                            };
+                            const fillSuper = () => {
+                              setIsSuper(true); setSuperWith(cleanName); setSuperSearch(cleanName); setSuperOpen(false);
+                              const last = getLastSets(cleanName);
+                              if (last) setSuperSets(last.map(s=>({id:uid(),reps:s.reps,weight:s.weight,done:false})));
+                              showToast("⚡ "+cleanName+" set as paired exercise");
+                            };
+                            return (
+                              <div key={i} style={{display:"flex",alignItems:"stretch",borderRadius:8,overflow:"hidden",border:"1px solid "+(grpColor+"40"),marginBottom:2}}>
+                                <div style={{width:4,background:grpColor,flexShrink:0}}/>
+                                <button onClick={fillMain} style={{background:"#1c1c2c",border:"none",padding:"6px 10px",fontSize:12,color:"#e8e8f0",cursor:"pointer",textAlign:"left"}}>
+                                  <div style={{maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanName}</div>
+                                  {grp && <div style={{fontSize:9,color:grpColor,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>{grp}</div>}
+                                </button>
+                                <button onClick={fillSuper} style={{background:"#4cc9f015",border:"none",borderLeft:"1px solid #4cc9f020",padding:"6px 9px",cursor:"pointer",color:"#4cc9f0",fontSize:13,flexShrink:0}}>⚡</button>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
+                        {/* Completed exercises - collapsed/strikethrough */}
+                        {done.length > 0 && (
+                          <div style={{borderTop:"1px solid #1c1c2c",paddingTop:7,marginTop:2}}>
+                            <div style={{fontSize:10,color:"#3a3a5a",marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>✓ Completed</div>
+                            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                              {done.map((ex,i)=>{
+                                const cleanName = ex.name.replace(" ⚡","");
+                                const grp = getMusGroup(cleanName);
+                                const grpColor = grp ? MUSCLE_COLORS[grp] : "#3a3a5a";
+                                return (
+                                  <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:"#0d0d15",borderRadius:7,padding:"4px 9px",border:"1px solid #1c1c2c",opacity:0.55}}>
+                                    <span style={{fontSize:12,color:"#3a3a5a",textDecoration:"line-through"}}>{cleanName}</span>
+                                    <span style={{fontSize:10,color:"#c8f135"}}>✓</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
