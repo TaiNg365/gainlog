@@ -1793,15 +1793,13 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                             );
                           })}
                         </div>
-                        {/* Completed exercises - collapsed/strikethrough */}
+                        {/* Completed exercises - from plan */}
                         {done.length > 0 && (
                           <div style={{borderTop:"1px solid #1c1c2c",paddingTop:7,marginTop:2}}>
-                            <div style={{fontSize:10,color:"#3a3a5a",marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>✓ Completed</div>
+                            <div style={{fontSize:10,color:"#3a3a5a",marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>✓ Completed from plan</div>
                             <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                               {done.map((ex,i)=>{
                                 const cleanName = ex.name.replace(" ⚡","");
-                                const grp = getMusGroup(cleanName);
-                                const grpColor = grp ? MUSCLE_COLORS[grp] : "#3a3a5a";
                                 return (
                                   <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:"#0d0d15",borderRadius:7,padding:"4px 9px",border:"1px solid #1c1c2c",opacity:0.55}}>
                                     <span style={{fontSize:12,color:"#3a3a5a",textDecoration:"line-through"}}>{cleanName}</span>
@@ -1812,6 +1810,37 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
                             </div>
                           </div>
                         )}
+                        {/* Extra exercises logged today not in the plan */}
+                        {(()=>{
+                          const planNames = new Set(allExs.map(ex=>ex.name.replace(" ⚡","").toLowerCase().trim()));
+                          const todayLogs2 = logs.filter(l=>l.date===today());
+                          // Collect all logged names today (main + supersets)
+                          const loggedToday = [];
+                          todayLogs2.forEach(l => {
+                            if (!planNames.has(l.machine.toLowerCase().trim())) loggedToday.push(l.machine);
+                            if (l.superset && l.supersetWith && !planNames.has(l.supersetWith.toLowerCase().trim())) loggedToday.push(l.supersetWith);
+                          });
+                          const extras = [...new Set(loggedToday)];
+                          if (extras.length === 0) return null;
+                          return (
+                            <div style={{borderTop:"1px solid #1c1c2c",paddingTop:7,marginTop:6}}>
+                              <div style={{fontSize:10,color:"#ff9f1c",marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>➕ Extra (not in plan)</div>
+                              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                                {extras.map((name,i)=>{
+                                  const grp = getMusGroup(name);
+                                  const grpColor = grp ? MUSCLE_COLORS[grp] : "#6a6a8a";
+                                  return (
+                                    <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:"#ff9f1c10",borderRadius:7,padding:"4px 9px",border:"1px solid #ff9f1c30"}}>
+                                      <div style={{width:3,height:"100%",background:grpColor,borderRadius:2,flexShrink:0}}/>
+                                      <span style={{fontSize:12,color:"#e8e8f0"}}>{name}</span>
+                                      <span style={{fontSize:10,color:"#c8f135"}}>✓</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </>
                     );
                   })()}
