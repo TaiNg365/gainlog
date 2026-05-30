@@ -1736,7 +1736,11 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
               {selectedSessionPlan && !planSelectOpen && (
                 <div>
                   {(()=>{
-                    const todayLogged = new Set(logs.filter(l=>l.date===today()).map(l=>l.machine.toLowerCase().trim()));
+                    const todayLogs = logs.filter(l=>l.date===today());
+                    const todayLogged = new Set([
+                      ...todayLogs.map(l=>l.machine.toLowerCase().trim()),
+                      ...todayLogs.filter(l=>l.superset&&l.supersetWith).map(l=>l.supersetWith.toLowerCase().trim())
+                    ]);
                     const allExs = (selectedSessionPlan.exercises || selectedSessionPlan.days?.[0]?.exercises || []).filter(ex=>ex.name&&!ex.name.startsWith("──"));
                     const done = allExs.filter(ex=>todayLogged.has(ex.name.replace(" ⚡","").toLowerCase().trim()));
                     const remaining = allExs.filter(ex=>!todayLogged.has(ex.name.replace(" ⚡","").toLowerCase().trim()));
