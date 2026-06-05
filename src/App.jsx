@@ -974,6 +974,7 @@ export default function App() {
 
   // History
   const [histFilter, setHistFilter] = useState("all");
+  const [histSearch, setHistSearch] = useState("");
   const [newMachInp, setNewMachInp] = useState("");
   const [customMuscleMap, setCustomMuscleMap] = useState(() => {
     try { return JSON.parse(localStorage.getItem("gl_muscle_map") || "{}"); } catch(e) { return {}; }
@@ -1209,21 +1210,37 @@ export default function App() {
   const tPct = timerMax > 0 ? ((timerMax-timerSec)/timerMax)*100 : 0;
   const R=68, CIRC=2*Math.PI*R;
 
-  // Get last logged sets for a given machine name (fuzzy match)
+  // Get last logged sets for a given machine name (fuzzy match, checks supersets too)
   const getLastSets = (machineName) => {
     if (!machineName) return null;
     const name = machineName.toLowerCase().trim();
-    // Exact match first
+
+    // 1. Exact match as main exercise
     let prev = logs.find(l => l.machine.toLowerCase().trim() === name);
-    // Fuzzy: check if one contains the other (min 6 chars)
-    if (!prev && name.length >= 6) {
+    if (prev?.sets?.length) return prev.sets;
+
+    // 2. Exact match as superset paired exercise
+    let prevSuper = logs.find(l => l.superset && l.supersetWith?.toLowerCase().trim() === name);
+    if (prevSuper?.supersetSets?.length) return prevSuper.supersetSets;
+
+    // 3. Fuzzy match as main exercise (min 6 chars)
+    if (name.length >= 6) {
       prev = logs.find(l => {
         const lname = l.machine.toLowerCase().trim();
         return lname.includes(name.slice(0,8)) || name.includes(lname.slice(0,8));
       });
+      if (prev?.sets?.length) return prev.sets;
+
+      // 4. Fuzzy match as superset
+      prevSuper = logs.find(l => {
+        if (!l.superset || !l.supersetWith) return false;
+        const sname = l.supersetWith.toLowerCase().trim();
+        return sname.includes(name.slice(0,8)) || name.includes(sname.slice(0,8));
+      });
+      if (prevSuper?.supersetSets?.length) return prevSuper.supersetSets;
     }
-    if (!prev || !prev.sets?.length) return null;
-    return prev.sets;
+
+    return null;
   };
 
   // Get suggestion label for a machine (e.g. "Last: 3x85lb")
@@ -2603,29 +2620,79 @@ Keep each point to 1-2 lines max. Use specific numbers from their data.`;
         {/* ── HISTORY TAB ── */}
         {tab==="history" && (
           <>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,marginBottom:12}}>History</div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,marginBottom:10}}>History</div>
+
+            {/* Search bar */}
+            <div style={{position:"relative",marginBottom:10}}>
+              <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:15,pointerEvents:"none"}}>🔍</span>
+              <input
+                className="inp"
+                style={{paddingLeft:38,paddingRight:histSearch?36:14}}
+                placeholder="Search exercise name..."
+                value={histSearch}
+                onChange={e=>setHistSearch(e.target.value)}
+              />
+              {histSearch && (
+                <button onClick={()=>setHistSearch("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#6a6a8a",fontSize:18,cursor:"pointer",lineHeight:1}}>×</button>
+              )}
+            </div>
+
             <div className="stabs">
               {[["all","All"],["pr","PRs"],["ss","Supersets"]].map(([k,l])=>(
                 <button key={k} className={"stab"+(histFilter===k?" on":"")} onClick={()=>setHistFilter(k)}>{l}</button>
               ))}
             </div>
-            <div style={{fontSize:12,color:"#6a6a8a",marginBottom:9}}>{filtered.length} sessions</div>
-            {filtered.map(l=>(
-              <div key={l.id} className={"li"+(l.isPR?" pr":l.superset?" ss":"")}>
-                <div className="lid">{l.date}</div>
-                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
-                  <div className="lim" style={{margin:0}}>{l.machine} {l.isPR&&"🏆"}</div>
-                  {(()=>{const g=getMusGroup(l.machine); return (
-                    <button onClick={()=>setQuickClassify(l.machine)} style={{background:g?MUSCLE_COLORS[g]+"20":"#1c1c2c",border:"1px solid "+(g?MUSCLE_COLORS[g]+"50":"#2a2a3a"),borderRadius:5,padding:"1px 7px",fontSize:10,color:g?MUSCLE_COLORS[g]:"#3a3a5a",cursor:"pointer",fontWeight:600,textTransform:"capitalize",flexShrink:0}}>
-                      {g||"? classify"}
-                    </button>
-                  );})()}
-                </div>
-                {l.superset && <div style={{fontSize:11,color:"#4cc9f0",marginBottom:3}}>⚡ SS w/ {l.supersetWith}</div>}
-                <div className="lis">{l.sets.map((s,i)=>(i+1)+": "+s.reps+"x"+s.weight+"lb").join(" · ")}</div>
-                {l.notes && <div style={{fontSize:11,color:"#3a3a5a",marginTop:3,fontStyle:"italic"}}>{l.notes}</div>}
-              </div>
-            ))}
+
+            {(()=>{
+              let results = filtered;
+              if (histSearch.trim()) {
+                const q = histSearch.toLowerCase().trim();
+                results = results.filter(l =>
+                  l.machine.toLowerCase().includes(q) ||
+                  (l.supersetWith||"").toLowerCase().includes(q) ||
+                  (l.notes||"").toLowerCase().includes(q)
+                );
+              }
+              return (
+                <>
+                  <div style={{fontSize:12,color:"#6a6a8a",marginBottom:9}}>
+                    {results.length} session{results.length!==1?"s":""}
+                    {histSearch && <span style={{color:"#c8f135"}}> · "{histSearch}"</span>}
+                  </div>
+                  {results.length === 0 && (
+                    <div style={{textAlign:"center",padding:"32px 0",color:"#3a3a5a"}}>
+                      <div style={{fontSize:28,marginBottom:8}}>🔍</div>
+                      <div style={{fontSize:14}}>No results for "{histSearch}"</div>
+                    </div>
+                  )}
+                  {results.map(l=>(
+                    <div key={l.id} className={"li"+(l.isPR?" pr":l.superset?" ss":"")}>
+                      <div className="lid">{l.date}{l.time ? " · "+l.time : ""}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3,flexWrap:"wrap"}}>
+                        <div className="lim" style={{margin:0}}>{l.machine} {l.isPR&&"🏆"}</div>
+                        {(()=>{const g=getMusGroup(l.machine); return (
+                          <button onClick={()=>setQuickClassify(l.machine)} style={{background:g?MUSCLE_COLORS[g]+"20":"#1c1c2c",border:"1px solid "+(g?MUSCLE_COLORS[g]+"50":"#2a2a3a"),borderRadius:5,padding:"1px 7px",fontSize:10,color:g?MUSCLE_COLORS[g]:"#3a3a5a",cursor:"pointer",fontWeight:600,textTransform:"capitalize",flexShrink:0}}>
+                            {g||"? classify"}
+                          </button>
+                        );})()}
+                      </div>
+                      {l.superset && l.supersetWith && (
+                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                          <div style={{fontSize:11,color:"#4cc9f0"}}>⚡ SS w/ {l.supersetWith}</div>
+                          {(()=>{const g=getMusGroup(l.supersetWith); return (
+                            <button onClick={()=>setQuickClassify(l.supersetWith)} style={{background:g?MUSCLE_COLORS[g]+"20":"#1c1c2c",border:"1px solid "+(g?MUSCLE_COLORS[g]+"50":"#2a2a3a"),borderRadius:5,padding:"1px 7px",fontSize:10,color:g?MUSCLE_COLORS[g]:"#3a3a5a",cursor:"pointer",fontWeight:600,textTransform:"capitalize",flexShrink:0}}>
+                              {g||"? classify"}
+                            </button>
+                          );})()}
+                        </div>
+                      )}
+                      <div className="lis">{l.sets.map((s,i)=>(i+1)+": "+s.reps+"x"+s.weight+"lb").join(" · ")}</div>
+                      {l.notes && <div style={{fontSize:11,color:"#3a3a5a",marginTop:3,fontStyle:"italic"}}>{l.notes}</div>}
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
           </>
         )}
 
