@@ -1024,6 +1024,7 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("gl_water", JSON.stringify({waterMl,waterGoal})); } catch(e) {} }, [waterMl, waterGoal]);
   useEffect(() => { try { localStorage.setItem("gl_plans", JSON.stringify(savedPlans)); } catch(e) {} }, [savedPlans]);
   useEffect(() => { try { localStorage.setItem("gl_session", JSON.stringify(activeSession)); } catch(e) {} }, [activeSession]);
+  useEffect(() => { try { localStorage.setItem("gl_muscle_map", JSON.stringify(customMuscleMap)); } catch(e) {} }, [customMuscleMap]);
 
 
   // Load from Supabase
